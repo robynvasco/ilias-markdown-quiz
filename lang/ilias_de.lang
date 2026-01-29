@@ -4,3 +4,19 @@ obj_xmdq_duplicate#:#Markdown Quiz kopieren
 obj_xmdq_select#:#Markdown Quiz auswählen
 xmdq_add#:#Markdown Quiz hinzufügen
 xmdq_new#:#Neues Markdown Quiz
+
+config_general#:#Allgemeine Einstellungen
+config_available_services#:#Verfügbare Dienste
+config_gwdg_label#:#GWDG (Academic Cloud)
+config_google_label#:#Google Gemini API
+config_system_prompt_label#:#Systemaufforderung
+config_system_prompt_info#:#Die Systemaufforderung für die KI-Quizgenerierung. Verwenden Sie {topic} für das Thema und {question_count} für die Anzahl der Fragen.
+config_gwdg_key_label#:#GWDG API-Schlüssel
+config_gwdg_key_info#:#Geben Sie Ihren GWDG API-Schlüssel ein
+config_gwdg_models_label#:#GWDG Modelle
+config_gwdg_stream_label#:#Streaming aktivieren
+config_gwdg_stream_info#:#Streaming-Antworten von GWDG aktivieren
+config_gwdg_models_error#:#Konnte verfügbare GWDG-Modelle nicht abrufen
+config_google_key_label#:#Google Gemini API-Schlüssel
+config_google_key_info#:#Geben Sie Ihren Google Gemini API-Schlüssel ein
+config_msg_success#:#Konfiguration erfolgreich gespeichert

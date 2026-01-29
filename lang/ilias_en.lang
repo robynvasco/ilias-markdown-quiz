@@ -4,3 +4,19 @@ obj_xmdq_duplicate#:#Copy Markdown Quiz
 obj_xmdq_select#:#Select Markdown Quiz
 xmdq_add#:#Add Markdown Quiz
 xmdq_new#:#New Markdown Quiz
+
+config_general#:#General Settings
+config_available_services#:#Available Services
+config_gwdg_label#:#GWDG (Academic Cloud)
+config_google_label#:#Google Gemini API
+config_system_prompt_label#:#System Prompt
+config_system_prompt_info#:#Enter the system prompt for quiz generation. Use {topic} and {question_count} as placeholders. Leave empty for default behavior.
+config_gwdg_key_label#:#GWDG API Key
+config_gwdg_key_info#:#Enter your GWDG API key
+config_gwdg_models_label#:#GWDG Models
+config_gwdg_stream_label#:#Enable Streaming
+config_gwdg_stream_info#:#Enable streaming responses from GWDG
+config_gwdg_models_error#:#Could not fetch available GWDG models
+config_google_key_label#:#Google Gemini API Key
+config_google_key_info#:#Enter your Google Gemini API key
+config_msg_success#:#Configuration saved successfully

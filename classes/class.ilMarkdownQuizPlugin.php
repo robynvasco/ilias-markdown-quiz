@@ -3,16 +3,27 @@ declare(strict_types=1);
 
 class ilMarkdownQuizPlugin extends ilRepositoryObjectPlugin
 {
-    // Die ID muss mit der in plugin.php/module.xml übereinstimmen
-    protected const ID = "xmdq";
+    public const PLUGIN_ID = "xmdq";
+    public const PLUGIN_NAME = "MarkdownQuiz";
 
     public function getPluginName(): string
     {
-        return "MarkdownQuiz";
+        return self::PLUGIN_NAME;
     }
 
     protected function uninstallCustom(): void
     {
-        // Hier könnten wir die DB-Tabelle löschen, falls gewünscht
+        global $DIC;
+        $db = $DIC->database();
+        
+        // Clean up configuration table
+        if ($db->tableExists('xmdq_config')) {
+            $db->manipulate("DELETE FROM xmdq_config");
+        }
+    }
+
+    public function allowCopy(): bool
+    {
+        return true;
     }
 }
