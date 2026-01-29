@@ -5,9 +5,17 @@ namespace ai;
 
 use platform\ilMarkdownQuizConfig;
 use platform\ilMarkdownQuizException;
+use security\ilMarkdownQuizCircuitBreaker;
+use security\ilMarkdownQuizResponseValidator;
+use security\ilMarkdownQuizRequestSigner;
+use security\ilMarkdownQuizCertificatePinner;
 
 require_once dirname(__DIR__) . '/platform/class.ilMarkdownQuizConfig.php';
 require_once dirname(__DIR__) . '/platform/class.ilMarkdownQuizException.php';
+require_once dirname(__DIR__) . '/security/class.ilMarkdownQuizCircuitBreaker.php';
+require_once dirname(__DIR__) . '/security/class.ilMarkdownQuizResponseValidator.php';
+require_once dirname(__DIR__) . '/security/class.ilMarkdownQuizRequestSigner.php';
+require_once dirname(__DIR__) . '/security/class.ilMarkdownQuizCertificatePinner.php';
 require_once __DIR__ . '/class.ilMarkdownQuizLLM.php';
 
 /**
@@ -30,10 +38,26 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
      */
     public function generateQuiz(string $user_prompt, string $difficulty, int $question_count): string
     {
-        $prompt = $this->buildPrompt($user_prompt, $difficulty, $question_count);
-        $response = $this->callAPI($prompt);
-
-        return $this->parseResponse($response);
+        $serviceName = 'gwdg';
+        
+        try {
+            // Check circuit breaker
+            ilMarkdownQuizCircuitBreaker::checkAvailability($serviceName);
+            
+            $prompt = $this->buildPrompt($user_prompt, $difficulty, $question_count);
+            $response = $this->callAPI($prompt);
+            $parsed = $this->parseResponse($response);
+            
+            // Record success
+            ilMarkdownQuizCircuitBreaker::recordSuccess($serviceName);
+            
+            return $parsed;
+            
+        } catch (\Exception $e) {
+            // Record failure
+            ilMarkdownQuizCircuitBreaker::recordFailure($serviceName);
+            throw $e;
+        }
     }
 
     protected function buildPrompt(string $user_prompt, string $difficulty, int $question_count): string
@@ -43,12 +67,18 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
         
         // Use configured prompt or simple default if empty
         if (empty($system_prompt)) {
-            $system_prompt = "Generate exactly {question_count} quiz questions with difficulty level: {difficulty}";
+            $system_prompt = "Generate exactly [QUESTION_COUNT] quiz questions with difficulty level: [DIFFICULTY]";
         }
         
-        // Replace placeholders
-        $system_prompt = str_replace('{difficulty}', $difficulty, $system_prompt);
-        $system_prompt = str_replace('{question_count}', (string)$question_count, $system_prompt);
+        // Convert legacy formats to new [PLACEHOLDER] format
+        $system_prompt = str_replace('{{question_count}}', '[QUESTION_COUNT]', $system_prompt);
+        $system_prompt = str_replace('{{difficulty}}', '[DIFFICULTY]', $system_prompt);
+        $system_prompt = str_replace('{question_count}', '[QUESTION_COUNT]', $system_prompt);
+        $system_prompt = str_replace('{difficulty}', '[DIFFICULTY]', $system_prompt);
+        
+        // Replace placeholders with actual values
+        $system_prompt = str_replace('[DIFFICULTY]', $difficulty, $system_prompt);
+        $system_prompt = str_replace('[QUESTION_COUNT]', (string)$question_count, $system_prompt);
         
         // Combine system prompt with user prompt
         $final_prompt = $system_prompt . "\n\n" . $user_prompt;

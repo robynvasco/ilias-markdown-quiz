@@ -5,14 +5,22 @@ use ILIAS\UI\Factory;
 use ILIAS\UI\Renderer;
 use platform\ilMarkdownQuizConfig;
 use platform\ilMarkdownQuizException;
+use platform\ilMarkdownQuizFileSecurity;
+use platform\ilMarkdownQuizXSSProtection;
+use platform\ilMarkdownQuizRateLimiter;
 use ai\ilMarkdownQuizGoogleAI;
 use ai\ilMarkdownQuizGWDG;
+use ai\ilMarkdownQuizOpenAI;
 
 require_once __DIR__ . '/platform/class.ilMarkdownQuizConfig.php';
 require_once __DIR__ . '/platform/class.ilMarkdownQuizException.php';
+require_once __DIR__ . '/platform/class.ilMarkdownQuizFileSecurity.php';
+require_once __DIR__ . '/platform/class.ilMarkdownQuizXSSProtection.php';
+require_once __DIR__ . '/platform/class.ilMarkdownQuizRateLimiter.php';
 require_once __DIR__ . '/ai/class.ilMarkdownQuizLLM.php';
 require_once __DIR__ . '/ai/class.ilMarkdownQuizGWDG.php';
 require_once __DIR__ . '/ai/class.ilMarkdownQuizGoogleAI.php';
+require_once __DIR__ . '/ai/class.ilMarkdownQuizOpenAI.php';
 require_once __DIR__ . '/class.ilObjMarkdownQuizUploadHandler.php';
 require_once __DIR__ . '/class.ilObjMarkdownQuizStakeholder.php';
 
@@ -83,9 +91,22 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
      */
     public function view(): void
     {
+        // SECURITY: Set CSP headers
+        ilMarkdownQuizXSSProtection::setCSPHeaders();
+        
         $this->tabs->activateTab("view");
         $raw_content = $this->object->getMarkdownContent() ?: "No quiz content yet.";
-        $html_output = $this->renderQuiz($raw_content);
+        
+        // SECURITY: Protect content before rendering
+        try {
+            $protected_content = ilMarkdownQuizXSSProtection::protectContent($raw_content);
+            $html_output = $this->renderQuiz($protected_content);
+        } catch (\Exception $e) {
+            $html_output = "<div class='alert alert-danger'>Error: " . 
+                          ilMarkdownQuizXSSProtection::escapeHTML($e->getMessage()) . 
+                          "</div>";
+        }
+        
         $panel = $this->factory->panel()->standard(
             $this->object->getTitle(),
             $this->factory->legacy($html_output)
@@ -105,8 +126,22 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $form = $form->withRequest($this->request);
             $data = $form->getData();
             if ($data !== null) {
+                // Debug: Log what data we got
+                error_log("MarkdownQuiz Settings: Data received - online value: " . var_export($data['online'] ?? 'NOT SET', true));
+                
+                // Reload object to ensure we have the latest data
+                $this->object->read();
+                
+                // Debug: Log what we read from database
+                error_log("MarkdownQuiz Settings: After read - online status: " . var_export($this->object->getOnline(), true));
+                
                 // Data already saved via transformations
-                $this->tpl->setOnScreenMessage('success', 'Settings saved successfully');
+                $this->tpl->setOnScreenMessage('success', 'Settings saved successfully. Online status: ' . ($this->object->getOnline() ? 'Yes' : 'No'));
+                
+                // Rebuild form with fresh data
+                $form = $this->buildSettingsForm();
+            } else {
+                error_log("MarkdownQuiz Settings: Form validation failed or no data");
             }
         }
 
@@ -115,7 +150,8 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
 
     private function buildSettingsForm(): \ILIAS\UI\Component\Input\Container\Form\Form
     {
-        $form_action = $this->ctrl->getFormAction($this);
+        // Set form action to explicitly point back to settings command
+        $form_action = $this->ctrl->getFormAction($this, 'settings');
 
         $title_field = $this->factory->input()->field()->text("Quiz Title")
             ->withValue((string)$this->object->getTitle())
@@ -128,6 +164,24 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                     }
                 )
             )->withRequired(true);
+
+        $online_field = $this->factory->input()->field()->checkbox("Online", "Make this quiz available to users")
+            ->withValue($this->object->getOnline())
+            ->withAdditionalTransformation(
+                $this->refinery->custom()->transformation(
+                    function ($v) {
+                        // Checkbox returns true when checked, null/false when unchecked
+                        $is_online = ($v === true || $v === 1 || $v === "1");
+                        $this->object->setOnline($is_online);
+                        $this->object->update();
+                        
+                        // Debug logging
+                        error_log("MarkdownQuiz: Saving online status - input value: " . var_export($v, true) . ", saved as: " . var_export($is_online, true));
+                        
+                        return $is_online;
+                    }
+                )
+            );
 
         $markdown_field = $this->factory->input()->field()->textarea("Markdown Content")
             ->withValue((string)$this->object->getMarkdownContent())
@@ -150,7 +204,7 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
 
         return $this->factory->input()->container()->form()->standard(
             $form_action,
-            ['title' => $title_field, 'md_content' => $markdown_field]
+            ['title' => $title_field, 'online' => $online_field, 'md_content' => $markdown_field]
         );
     }
 
@@ -164,9 +218,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $this->checkPermission("write");
         $this->tabs->activateTab("generate");
 
-        file_put_contents('/tmp/mdquiz_debug.log', date('Y-m-d H:i:s') . " - generate() called\n", FILE_APPEND);
-        file_put_contents('/tmp/mdquiz_debug.log', "Request method: " . $this->request->getMethod() . "\n", FILE_APPEND);
-
         ilMarkdownQuizConfig::load();
         
         // Determine active provider from available_services
@@ -178,7 +229,10 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $provider = null;
         $api_key = null;
         
-        if (isset($available_services['google']) && $available_services['google']) {
+        if (isset($available_services['openai']) && $available_services['openai']) {
+            $provider = 'openai';
+            $api_key = ilMarkdownQuizConfig::get('openai_api_key');
+        } elseif (isset($available_services['google']) && $available_services['google']) {
             $provider = 'google';
             $api_key = ilMarkdownQuizConfig::get('google_api_key');
         } elseif (isset($available_services['gwdg']) && $available_services['gwdg']) {
@@ -227,14 +281,19 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         // Get available files from parent container
         $available_files = $this->getAvailableFiles();
         
+        // DEBUG: Log what's in the array
+        error_log("Available files array: " . print_r(array_keys($available_files), true));
+        
         // Validate saved file ref_id - reset if deleted or inaccessible
         $saved_ref_id = $this->object->getLastFileRefId();
-        if ($saved_ref_id > 0 && !isset($available_files[$saved_ref_id])) {
+        if ($saved_ref_id > 0 && !isset($available_files[(string)$saved_ref_id])) {
             // File was deleted or is no longer accessible, reset to 0
             $saved_ref_id = 0;
             $this->object->setLastFileRefId(0);
             $this->object->update();
         }
+        
+        error_log("Saved ref_id: " . $saved_ref_id);
         
         if (!empty($available_files)) {
             $file_ref_field = $this->factory->input()->field()->select(
@@ -264,54 +323,69 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $form = $form->withRequest($this->request);
             $data = $form->getData();
             
-            file_put_contents('/tmp/mdquiz_debug.log', "POST detected, form data: " . print_r($data, true) . "\n", FILE_APPEND);
             
             if ($data) {
                 try {
-                    file_put_contents('/tmp/mdquiz_debug.log', "Calling generateMarkdownQuiz\n", FILE_APPEND);
+                    // RATE LIMIT: Check quiz generation cooldown
+                    ilMarkdownQuizRateLimiter::recordQuizGeneration();
+                    
+                    // RATE LIMIT: Increment concurrent request counter
+                    ilMarkdownQuizRateLimiter::incrementConcurrent();
+                    
+                    // SECURITY: Validate and sanitize inputs
+                    $prompt = ilMarkdownQuizXSSProtection::sanitizeUserInput($data['prompt'], 5000);
+                    $difficulty = $data['difficulty'];
+                    $question_count = (int)$data['question_count'];
+                    
+                    // Validate difficulty and question count
+                    if (!ilMarkdownQuizXSSProtection::validateDifficulty($difficulty)) {
+                        throw new \Exception("Invalid difficulty level");
+                    }
+                    if (!ilMarkdownQuizXSSProtection::validateQuestionCount($question_count)) {
+                        throw new \Exception("Question count must be between 1 and 20");
+                    }
                     
                     // Get context from textarea or file
-                    $context = $data['context'] ?? '';
+                    $context = ilMarkdownQuizXSSProtection::sanitizeUserInput($data['context'] ?? '', 10000);
                     
                     // If file ref_id provided, fetch file content
                     if (!empty($data['file_ref_id']) && $data['file_ref_id'] > 0) {
-                        file_put_contents('/tmp/mdquiz_debug.log', "Fetching file content for ref_id: " . $data['file_ref_id'] . "\n", FILE_APPEND);
                         $file_context = $this->getFileContent((int)$data['file_ref_id']);
-                        file_put_contents('/tmp/mdquiz_debug.log', "File context length: " . strlen($file_context) . " chars\n", FILE_APPEND);
-                        file_put_contents('/tmp/mdquiz_debug.log', "File context preview: " . substr($file_context, 0, 200) . "\n", FILE_APPEND);
                         if (!empty($file_context)) {
                             $context .= ($context ? "\n\n" : "") . $file_context;
                         }
                     }
                     
-                    file_put_contents('/tmp/mdquiz_debug.log', "Final context length: " . strlen($context) . " chars\n", FILE_APPEND);
                     
                     $markdown = $this->generateMarkdownQuiz(
-                        $data['prompt'], 
-                        $data['difficulty'],
-                        $data['question_count'],
+                        $prompt, 
+                        $difficulty,
+                        $question_count,
                         $context
                     );
                     
-                    file_put_contents('/tmp/mdquiz_debug.log', "Generated markdown length: " . strlen($markdown) . "\n", FILE_APPEND);
+                    // SECURITY: Protect generated content before storing
+                    $markdown = ilMarkdownQuizXSSProtection::protectContent($markdown);
                     
                     if (empty($markdown)) {
+                        ilMarkdownQuizRateLimiter::decrementConcurrent();
                         $this->tpl->setOnScreenMessage('failure', 'AI returned empty content');
                     } else {
                         $this->object->setMarkdownContent($markdown);
-                        $this->object->setLastPrompt($data['prompt']);
-                        $this->object->setLastDifficulty($data['difficulty']);
-                        $this->object->setLastQuestionCount((int)$data['question_count']);
+                        $this->object->setLastPrompt($prompt);
+                        $this->object->setLastDifficulty($difficulty);
+                        $this->object->setLastQuestionCount($question_count);
                         $this->object->setLastContext($data['context'] ?? '');
                         $this->object->setLastFileRefId((int)($data['file_ref_id'] ?? 0));
                         $this->object->update();
 
+                        ilMarkdownQuizRateLimiter::decrementConcurrent();
                         $this->tpl->setOnScreenMessage('success', 'Quiz generated successfully!');
                         $this->ctrl->redirect($this, 'settings');
                         return;
                     }
                 } catch (\Exception $e) {
-                    file_put_contents('/tmp/mdquiz_debug.log', "Exception: " . $e->getMessage() . "\n", FILE_APPEND);
+                    ilMarkdownQuizRateLimiter::decrementConcurrent();
                     $this->tpl->setOnScreenMessage('failure', 'Error: ' . $e->getMessage());
                 }
             }
@@ -327,7 +401,10 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     {
         global $DIC;
         
-        $files = [0 => "-- None --"];
+        $files = [];
+        
+        // Supported file extensions
+        $supported_extensions = ['txt', 'pdf', 'doc', 'docx', 'ppt', 'pptx'];
         
         try {
             // Get parent ref_id
@@ -349,11 +426,15 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                         try {
                             $file_obj = new ilObjFile($obj_id, false);
                             $size_kb = round($file_obj->getFileSize() / 1024, 2);
-                            $ext = $file_obj->getFileExtension();
+                            $ext = strtolower($file_obj->getFileExtension());
                             
-                            $files[$ref_id] = "$title ($ext, $size_kb KB)";
+                            // Only include supported file types
+                            if (in_array($ext, $supported_extensions)) {
+                                $files[$ref_id] = "$title ($ext, $size_kb KB)";
+                            }
                         } catch (\Exception $e) {
-                            $files[$ref_id] = $title;
+                            // Skip files with errors
+                            continue;
                         }
                     }
                 }
@@ -373,10 +454,15 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                 }
             }
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "Error getting files: " . $e->getMessage() . "\n", FILE_APPEND);
         }
         
-        return $files;
+        // Filter out any empty keys/values that might cause UI issues
+        $files = array_filter($files, function($key, $value) {
+            return !empty($key) && $key !== '' && $key !== '-' && !empty($value);
+        }, ARRAY_FILTER_USE_BOTH);
+        
+        // Always add "-- None --" as first option with key "0" (string to avoid ILIAS UI issues)
+        return ["0" => "-- None --"] + $files;
     }
 
     /**
@@ -385,6 +471,9 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function getFileContent(int $ref_id): string
     {
         try {
+            // RATE LIMIT: Check file processing limit
+            ilMarkdownQuizRateLimiter::recordFileProcessing();
+            
             global $DIC;
             
             // Check if object exists and is a file
@@ -426,24 +515,28 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $stream = $DIC->resourceStorage()->consume()->stream($resource_identification)->getStream();
             $content = $stream->getContents();
             
-            // Try to extract text based on file type
-            $suffix = $file_obj->getFileExtension();
+            // SECURITY: Validate file size
+            $suffix = strtolower($file_obj->getFileExtension());
+            ilMarkdownQuizFileSecurity::validateFileSize($content);
             
-            if (strtolower($suffix) === 'txt') {
+            // Try to extract text based on file type
+            
+            if ($suffix === 'txt') {
                 return $content;
-            } elseif (strtolower($suffix) === 'pdf') {
+            } elseif ($suffix === 'pdf') {
                 return $this->extractTextFromPDF($content);
-            } elseif (in_array(strtolower($suffix), ['ppt', 'pptx'])) {
-                return $this->extractTextFromPowerPoint($content, strtolower($suffix));
-            } elseif (in_array(strtolower($suffix), ['doc', 'docx'])) {
-                return $this->extractTextFromWord($content, strtolower($suffix));
+            } elseif (in_array($suffix, ['ppt', 'pptx'])) {
+                return $this->extractTextFromPowerPoint($content, $suffix);
+            } elseif (in_array($suffix, ['doc', 'docx'])) {
+                return $this->extractTextFromWord($content, $suffix);
             } else {
-                // For other types, try to use as plain text
-                return $content;
+                // Unsupported file type
+                throw new \Exception(
+                    "Unsupported file type: {$suffix}. Supported types: txt, pdf, doc, docx, ppt, pptx"
+                );
             }
             
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "File content error: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -460,7 +553,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             // Get all pages
             $pages = ilLMPageObject::getPageList($obj_id);
             
-            file_put_contents('/tmp/mdquiz_debug.log', "Learning Module has " . count($pages) . " pages\n", FILE_APPEND);
             
             foreach ($pages as $page) {
                 $page_obj = new ilLMPageObject($lm_obj, $page['obj_id']);
@@ -474,7 +566,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                 }
             }
             
-            file_put_contents('/tmp/mdquiz_debug.log', "Extracted LM text length: " . strlen($text) . "\n", FILE_APPEND);
             
             // Limit length
             if (strlen($text) > 8000) {
@@ -483,7 +574,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             return $text;
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "LM extraction error: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -516,14 +606,15 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function extractTextFromPDF(string $content): string
     {
         try {
-            file_put_contents('/tmp/mdquiz_debug.log', "PDF extraction started, content length: " . strlen($content) . "\n", FILE_APPEND);
+            // SECURITY: Set timeout and validate file
+            ilMarkdownQuizFileSecurity::setProcessingTimeout();
+            ilMarkdownQuizFileSecurity::validateFile($content, 'pdf');
             
             $text = '';
             
             // Extract text from Tj and TJ operators (text showing operators in PDF)
             // Look for patterns like: (text string) Tj or [(text) (string)] TJ
             if (preg_match_all('/\(([^)]*)\)\s*T[jJ*\']/', $content, $matches)) {
-                file_put_contents('/tmp/mdquiz_debug.log', "Found " . count($matches[1]) . " text strings in Tj operators\n", FILE_APPEND);
                 foreach ($matches[1] as $match) {
                     $decoded = $this->decodePDFString($match);
                     if (!empty(trim($decoded))) {
@@ -534,7 +625,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             // Also look for text in array format: [(text1) (text2)] TJ
             if (preg_match_all('/\[\s*\((.*?)\)\s*\]\s*TJ/', $content, $matches)) {
-                file_put_contents('/tmp/mdquiz_debug.log', "Found " . count($matches[1]) . " text arrays\n", FILE_APPEND);
                 foreach ($matches[1] as $match) {
                     $decoded = $this->decodePDFString($match);
                     if (!empty(trim($decoded))) {
@@ -545,7 +635,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             // Fallback: If still empty, try to extract readable text from anywhere
             if (empty($text)) {
-                file_put_contents('/tmp/mdquiz_debug.log', "Using fallback extraction\n", FILE_APPEND);
                 // Look for any parenthesized content that looks like text
                 if (preg_match_all('/\(([A-Za-z0-9äöüÄÖÜß\s,\.;:\-?!]{3,})\)/', $content, $matches)) {
                     foreach ($matches[1] as $match) {
@@ -561,8 +650,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $text = preg_replace('/\s+/', ' ', $text);
             $text = trim($text);
             
-            file_put_contents('/tmp/mdquiz_debug.log', "Extracted text length: " . strlen($text) . "\n", FILE_APPEND);
-            file_put_contents('/tmp/mdquiz_debug.log', "Text preview: " . substr($text, 0, 300) . "\n", FILE_APPEND);
             
             // Limit length
             if (strlen($text) > 5000) {
@@ -571,7 +658,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             return $text;
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "PDF extraction exception: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -594,13 +680,22 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function extractTextFromPowerPoint(string $content, string $format): string
     {
         try {
-            file_put_contents('/tmp/mdquiz_debug.log', "PowerPoint extraction started, format: $format, content length: " . strlen($content) . "\n", FILE_APPEND);
+            // SECURITY: Set timeout and validate file size
+            ilMarkdownQuizFileSecurity::setProcessingTimeout();
+            ilMarkdownQuizFileSecurity::validateFileSize($content);
             
             if ($format !== 'pptx') {
-                file_put_contents('/tmp/mdquiz_debug.log', "Unsupported PowerPoint format: $format (only .pptx supported)\n", FILE_APPEND);
                 return '';
             }
             
+            // Save content to temp file (PPTX is a ZIP archive)
+            $temp_file = tempnam(sys_get_temp_dir(), 'mdquiz_pptx_');
+            file_put_contents($temp_file, $content);
+            
+            // SECURITY: Validate ZIP file (magic bytes, compression ratio, virus scan)
+            ilMarkdownQuizFileSecurity::validateFile($content, 'pptx', $temp_file);
+            // SECURITY: Validate ZIP file (magic bytes, compression ratio, virus scan)
+            ilMarkdownQuizFileSecurity::validateFile($content, 'pptx', $temp_file);
             // Save content to temporary file (PPTX is a ZIP archive)
             $temp_file = tempnam(sys_get_temp_dir(), 'pptx_');
             file_put_contents($temp_file, $content);
@@ -610,7 +705,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             // Open PPTX as ZIP archive
             $zip = new ZipArchive();
             if ($zip->open($temp_file) === true) {
-                file_put_contents('/tmp/mdquiz_debug.log', "Successfully opened PPTX archive\n", FILE_APPEND);
                 
                 // Extract text from all slides
                 for ($i = 1; $i <= 100; $i++) { // Try up to 100 slides
@@ -621,7 +715,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                         break; // No more slides
                     }
                     
-                    file_put_contents('/tmp/mdquiz_debug.log', "Processing slide $i\n", FILE_APPEND);
                     
                     // Parse XML and extract text
                     $slide_text = $this->extractTextFromPowerPointXML($slide_content);
@@ -632,7 +725,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                 
                 $zip->close();
             } else {
-                file_put_contents('/tmp/mdquiz_debug.log', "Failed to open PPTX as ZIP\n", FILE_APPEND);
             }
             
             // Clean up temporary file
@@ -642,8 +734,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $text = preg_replace('/\s+/', ' ', $text);
             $text = trim($text);
             
-            file_put_contents('/tmp/mdquiz_debug.log', "Extracted PowerPoint text length: " . strlen($text) . "\n", FILE_APPEND);
-            file_put_contents('/tmp/mdquiz_debug.log', "Text preview: " . substr($text, 0, 300) . "\n", FILE_APPEND);
             
             // Limit length
             if (strlen($text) > 5000) {
@@ -652,7 +742,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             return $text;
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "PowerPoint extraction exception: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -663,9 +752,19 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function extractTextFromPowerPointXML(string $xml): string
     {
         try {
-            // Parse XML
+            // Disable external entity loading to prevent XXE attacks
+            $previous_value = libxml_disable_entity_loader(true);
+            
+            // Parse XML with security flags
             $dom = new DOMDocument();
-            @$dom->loadXML($xml);
+            $loaded = $dom->loadXML($xml, LIBXML_NONET | LIBXML_DTDLOAD | LIBXML_DTDATTR);
+            
+            // Restore previous setting
+            libxml_disable_entity_loader($previous_value);
+            
+            if (!$loaded) {
+                throw new Exception('Failed to parse PowerPoint XML');
+            }
             
             // Get all text elements (a:t tags in PowerPoint XML)
             $xpath = new DOMXPath($dom);
@@ -679,7 +778,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             return trim($text);
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "PowerPoint XML parsing error: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -690,37 +788,37 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function extractTextFromWord(string $content, string $format): string
     {
         try {
-            file_put_contents('/tmp/mdquiz_debug.log', "Word extraction started, format: $format, content length: " . strlen($content) . "\n", FILE_APPEND);
+            // SECURITY: Set timeout and validate file size
+            ilMarkdownQuizFileSecurity::setProcessingTimeout();
+            ilMarkdownQuizFileSecurity::validateFileSize($content);
             
             if ($format !== 'docx') {
-                file_put_contents('/tmp/mdquiz_debug.log', "Unsupported Word format: $format (only .docx supported)\n", FILE_APPEND);
                 return '';
             }
             
-            // Save content to temporary file (DOCX is a ZIP archive)
-            $temp_file = tempnam(sys_get_temp_dir(), 'docx_');
+            // Save content to temp file (DOCX is a ZIP archive)
+            $temp_file = tempnam(sys_get_temp_dir(), 'mdquiz_docx_');
             file_put_contents($temp_file, $content);
+            
+            // SECURITY: Validate ZIP file (magic bytes, compression ratio, virus scan)
+            ilMarkdownQuizFileSecurity::validateFile($content, 'docx', $temp_file);
             
             $text = '';
             
             // Open DOCX as ZIP archive
             $zip = new ZipArchive();
             if ($zip->open($temp_file) === true) {
-                file_put_contents('/tmp/mdquiz_debug.log', "Successfully opened DOCX archive\n", FILE_APPEND);
                 
                 // Extract text from main document
                 $doc_content = $zip->getFromName('word/document.xml');
                 
                 if ($doc_content !== false) {
-                    file_put_contents('/tmp/mdquiz_debug.log', "Processing document.xml\n", FILE_APPEND);
                     $text = $this->extractTextFromWordXML($doc_content);
                 } else {
-                    file_put_contents('/tmp/mdquiz_debug.log', "Could not find word/document.xml\n", FILE_APPEND);
                 }
                 
                 $zip->close();
             } else {
-                file_put_contents('/tmp/mdquiz_debug.log', "Failed to open DOCX as ZIP\n", FILE_APPEND);
             }
             
             // Clean up temporary file
@@ -730,8 +828,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $text = preg_replace('/\s+/', ' ', $text);
             $text = trim($text);
             
-            file_put_contents('/tmp/mdquiz_debug.log', "Extracted Word text length: " . strlen($text) . "\n", FILE_APPEND);
-            file_put_contents('/tmp/mdquiz_debug.log', "Text preview: " . substr($text, 0, 300) . "\n", FILE_APPEND);
             
             // Limit length
             if (strlen($text) > 5000) {
@@ -740,7 +836,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             return $text;
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "Word extraction exception: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -751,9 +846,19 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function extractTextFromWordXML(string $xml): string
     {
         try {
-            // Parse XML
+            // Disable external entity loading to prevent XXE attacks
+            $previous_value = libxml_disable_entity_loader(true);
+            
+            // Parse XML with security flags
             $dom = new DOMDocument();
-            @$dom->loadXML($xml);
+            $loaded = $dom->loadXML($xml, LIBXML_NONET | LIBXML_DTDLOAD | LIBXML_DTDATTR);
+            
+            // Restore previous setting
+            libxml_disable_entity_loader($previous_value);
+            
+            if (!$loaded) {
+                throw new Exception('Failed to parse Word XML');
+            }
             
             // Get all text elements (w:t tags in Word XML)
             $xpath = new DOMXPath($dom);
@@ -791,7 +896,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             
             return trim($text);
         } catch (\Exception $e) {
-            file_put_contents('/tmp/mdquiz_debug.log', "Word XML parsing error: " . $e->getMessage() . "\n", FILE_APPEND);
             return '';
         }
     }
@@ -801,6 +905,9 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
      */
     private function generateMarkdownQuiz(string $user_prompt, string $difficulty, int $question_count, string $context = ''): string
     {
+        // RATE LIMIT: Check API call limit
+        ilMarkdownQuizRateLimiter::recordApiCall();
+        
         ilMarkdownQuizConfig::load();
 
         $available_services = ilMarkdownQuizConfig::get('available_services');
@@ -810,8 +917,18 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         
         $ai = null;
 
-        // Try Google first if available
-        if (isset($available_services['google']) && $available_services['google']) {
+        // Try OpenAI first if available
+        if (isset($available_services['openai']) && $available_services['openai']) {
+            $api_key = ilMarkdownQuizConfig::get('openai_api_key');
+            $model = ilMarkdownQuizConfig::get('openai_model') ?: 'gpt-4o-mini';
+
+            if (!empty($api_key)) {
+                $ai = new ilMarkdownQuizOpenAI($api_key, $model);
+            }
+        }
+
+        // Try Google if OpenAI not available
+        if ($ai === null && isset($available_services['google']) && $available_services['google']) {
             $api_key = ilMarkdownQuizConfig::get('google_api_key');
 
             if (!empty($api_key)) {
@@ -866,7 +983,9 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                 
                 $question_num++;
                 $html .= "<div class='question' style='margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;'>";
-                $html .= "<h4 style='margin: 0 0 15px 0; color: #333;'>" . htmlspecialchars($line) . "</h4>";
+                // SECURITY: Escape question text
+                $html .= "<h4 style='margin: 0 0 15px 0; color: #333;'>" . 
+                         ilMarkdownQuizXSSProtection::escapeHTML($line) . "</h4>";
                 $html .= "<div class='options' style='margin-left: 10px;'>";
                 $in_question = true;
             } elseif (str_starts_with($line, '-')) {
@@ -874,10 +993,14 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                     $is_correct = str_contains($line, '[x]');
                     $answer_text = trim(str_replace(['- [x]', '- [ ]', '-'], '', $line));
 
+                    // SECURITY: Create safe data attribute
                     $correct_attr = $is_correct ? "data-correct='true'" : "data-correct='false'";
+                    $safe_name = ilMarkdownQuizXSSProtection::createSafeDataAttribute("q_{$question_num}");
+                    
                     $html .= "<label style='display: block; margin: 8px 0; padding: 5px; cursor: pointer; border-radius: 3px;'>";
-                    $html .= "<input type='radio' name='q_{$question_num}' {$correct_attr} style='margin-right: 8px;'>";
-                    $html .= htmlspecialchars($answer_text);
+                    $html .= "<input type='radio' name='{$safe_name}' {$correct_attr} style='margin-right: 8px;'>";
+                    // SECURITY: Escape answer text
+                    $html .= ilMarkdownQuizXSSProtection::escapeHTML($answer_text);
                     $html .= "</label>";
                 }
             }

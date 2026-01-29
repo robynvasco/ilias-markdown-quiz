@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace platform;
 
+require_once __DIR__ . '/class.ilMarkdownQuizEncryption.php';
 
 /**
  * Class ilMarkdownQuizConfig
@@ -19,6 +20,13 @@ class ilMarkdownQuizConfig
 {
     private static array $config = [];
     private static array $updated = [];
+    
+    // List of configuration keys that should be encrypted
+    private const ENCRYPTED_KEYS = [
+        'gwdg_api_key',
+        'google_api_key',
+        'openai_api_key'
+    ];
 
     /**
      * Load the plugin configuration
@@ -28,9 +36,21 @@ class ilMarkdownQuizConfig
     public static function load(): void
     {
         try {
+            // Check if table exists first (important during uninstall)
+            global $DIC;
+            if (!$DIC->database()->tableExists('xmdq_config')) {
+                self::$config = [];
+                return;
+            }
+            
             $config = (new ilMarkdownQuizDatabase)->select('xmdq_config');
 
             foreach ($config as $row) {
+                // Skip if row is null or doesn't have required keys
+                if (!is_array($row) || !isset($row['name'])) {
+                    continue;
+                }
+                
                 if (isset($row['value']) && $row['value'] !== '') {
                     $json_decoded = json_decode($row['value'], true);
 
@@ -39,7 +59,7 @@ class ilMarkdownQuizConfig
                     }
                 }
 
-                self::$config[$row['name']] = $row['value'];
+                self::$config[$row['name']] = $row['value'] ?? null;
             }
         } catch (ilMarkdownQuizException $e) {
             // Silently ignore if table doesn't exist yet during plugin activation
@@ -52,6 +72,7 @@ class ilMarkdownQuizConfig
 
     /**
      * Set the plugin configuration value for a given key to a given value
+     * Automatically encrypts sensitive values (API keys)
      * @param string $key
      * @param $value
      * @return void
@@ -60,6 +81,14 @@ class ilMarkdownQuizConfig
     {
         if (is_bool($value)) {
             $value = (int)$value;
+        }
+        
+        // Encrypt API keys before storing
+        if (in_array($key, self::ENCRYPTED_KEYS) && is_string($value) && !empty($value)) {
+            // Only encrypt if not already encrypted
+            if (!ilMarkdownQuizEncryption::isEncrypted($value)) {
+                $value = ilMarkdownQuizEncryption::encrypt($value);
+            }
         }
 
         if (!isset(self::$config[$key]) || self::$config[$key] !== $value) {
@@ -70,13 +99,21 @@ class ilMarkdownQuizConfig
 
     /**
      * Gets the plugin configuration value for a given key
+     * Automatically decrypts sensitive values (API keys)
      * @param string $key
      * @return mixed|string
      * @throws ilMarkdownQuizException
      */
     public static function get(string $key)
     {
-        return self::$config[$key] ?? self::getFromDB($key);
+        $value = self::$config[$key] ?? self::getFromDB($key);
+        
+        // Decrypt API keys when retrieving
+        if (in_array($key, self::ENCRYPTED_KEYS) && is_string($value) && !empty($value)) {
+            return ilMarkdownQuizEncryption::decrypt($value);
+        }
+        
+        return $value;
     }
 
     /**
@@ -159,6 +196,16 @@ class ilMarkdownQuizConfig
 
         // In case there is nothing to update, return true to avoid error messages
         return true;
+    }
+    
+    /**
+     * Clear the cached configuration (useful for testing)
+     * @return void
+     */
+    public static function clearCache(): void
+    {
+        self::$config = [];
+        self::$updated = [];
     }
 }
 

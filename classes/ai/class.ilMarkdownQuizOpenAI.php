@@ -19,9 +19,9 @@ require_once dirname(__DIR__) . '/security/class.ilMarkdownQuizCertificatePinner
 require_once __DIR__ . '/class.ilMarkdownQuizLLM.php';
 
 /**
- * Google Gemini LLM provider for MarkdownQuiz
+ * OpenAI GPT provider for MarkdownQuiz
  */
-class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
+class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
 {
     private string $api_key;
     private string $model;
@@ -38,7 +38,7 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
      */
     public function generateQuiz(string $user_prompt, string $difficulty, int $question_count): string
     {
-        $serviceName = 'google';
+        $serviceName = 'openai';
         
         try {
             // Check circuit breaker
@@ -67,7 +67,7 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
         
         // DEBUG: Write to file
         $debug_file = '/tmp/mdquiz_prompt_debug.log';
-        file_put_contents($debug_file, "=== PROMPT DEBUG ===\n", FILE_APPEND);
+        file_put_contents($debug_file, "=== OPENAI PROMPT DEBUG ===\n", FILE_APPEND);
         file_put_contents($debug_file, "Time: " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
         file_put_contents($debug_file, "system_prompt from config (first 200 chars): " . substr($system_prompt, 0, 200) . "\n", FILE_APPEND);
         file_put_contents($debug_file, "question_count: " . $question_count . "\n", FILE_APPEND);
@@ -107,82 +107,113 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
     private function callAPI(string $prompt): string
     {
         if (empty($this->api_key)) {
-            throw new ilMarkdownQuizException("Google API key is not configured");
+            throw new ilMarkdownQuizException("OpenAI API key is not configured");
         }
 
-        $url = "https://generativelanguage.googleapis.com/v1/models/" . 
-               urlencode($this->model) . ":generateContent?key=" . urlencode($this->api_key);
+        $url = "https://api.openai.com/v1/chat/completions";
 
         $payload = [
-            "contents" => [
+            "model" => $this->model,
+            "messages" => [
                 [
-                    "parts" => [
-                        [
-                            "text" => $prompt
-                        ]
-                    ]
+                    "role" => "user",
+                    "content" => $prompt
                 ]
             ],
-            "generationConfig" => [
-                "temperature" => 0.7,
-                "maxOutputTokens" => 2000
-            ]
+            "temperature" => 0.7,
+            "max_tokens" => 2000
         ];
-
+        
+        // Create request metadata for auditing
+        $metadata = ilMarkdownQuizRequestSigner::createRequestMetadata('openai');
+        
+        // Sign request
+        $signature = ilMarkdownQuizRequestSigner::signRequest('openai', $payload, $this->api_key);
 
         $ch = curl_init($url);
         if ($ch === false) {
             throw new ilMarkdownQuizException("Failed to initialize CURL");
         }
+        
+        // Configure certificate pinning
+        ilMarkdownQuizCertificatePinner::configureCurl($ch, 'api.openai.com');
 
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => json_encode($payload),
             CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json"
+                "Content-Type: application/json",
+                "Authorization: Bearer " . $this->api_key,
+                "X-Request-Signature: " . $signature,
+                "X-Request-ID: " . $metadata['request_id']
             ],
-            CURLOPT_TIMEOUT => 30
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2
         ]);
 
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        
+        // Verify certificate (if pinning enabled)
+        try {
+            ilMarkdownQuizCertificatePinner::verifyCertificate('api.openai.com', $ch);
+        } catch (\Exception $e) {
+            curl_close($ch);
+            throw new ilMarkdownQuizException("Certificate verification failed: " . $e->getMessage());
+        }
+        
         curl_close($ch);
 
-
         if ($response === false) {
-            throw new ilMarkdownQuizException("API call failed: " . $error);
+            throw new ilMarkdownQuizException("OpenAI API call failed: " . $error);
         }
 
         if ($http_code !== 200) {
-            $decoded = json_decode($response, true);
-            $error_msg = isset($decoded['error']['message']) ? $decoded['error']['message'] : 'Unknown error';
-            throw new ilMarkdownQuizException("Google API returned status code " . $http_code . ": " . $error_msg);
+            $error_data = json_decode($response, true);
+            $error_message = $error_data['error']['message'] ?? 'Unknown error';
+            throw new ilMarkdownQuizException("OpenAI API error (HTTP $http_code): " . $error_message);
         }
-
-        $decoded = json_decode($response, true);
-        if (!is_array($decoded)) {
-            throw new ilMarkdownQuizException("Invalid API response format");
-        }
-
-        // Navigate through the response structure
-        if (!isset($decoded['candidates'][0]['content']['parts'][0]['text'])) {
-            throw new ilMarkdownQuizException("Could not extract text from Google API response");
-        }
-
-        return $decoded['candidates'][0]['content']['parts'][0]['text'];
-    }
-
-    private function parseResponse(string $response): string
-    {
-        
-        // Remove common markdown code blocks if present
-        $response = preg_replace('/^```markdown\n/', '', $response);
-        $response = preg_replace('/\n```$/', '', $response);
-        $response = trim($response);
-        
 
         return $response;
+    }
+
+    /**
+     * Parse the API response to extract quiz content
+     * @throws ilMarkdownQuizException
+     */
+    private function parseResponse(string $response): string
+    {
+        $data = json_decode($response, true);
+        
+        if ($data === null) {
+            throw new ilMarkdownQuizException("Invalid JSON response from OpenAI API");
+        }
+        
+        // Validate response schema
+        try {
+            ilMarkdownQuizResponseValidator::validateOpenAIResponse($data);
+        } catch (\Exception $e) {
+            throw new ilMarkdownQuizException("Response validation failed: " . $e->getMessage());
+        }
+
+        $content = $data['choices'][0]['message']['content'];
+        
+        // Clean up markdown code blocks if present
+        $content = preg_replace('/^```(?:markdown)?\s*/m', '', $content);
+        $content = preg_replace('/```\s*$/m', '', $content);
+        
+        $content = trim($content);
+        
+        // Validate markdown quiz format
+        try {
+            ilMarkdownQuizResponseValidator::validateMarkdownQuizFormat($content);
+        } catch (\Exception $e) {
+            throw new ilMarkdownQuizException("Quiz format validation failed: " . $e->getMessage());
+        }
+        
+        return $content;
     }
 }

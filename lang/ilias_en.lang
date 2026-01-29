@@ -19,4 +19,7 @@ config_gwdg_stream_info#:#Enable streaming responses from GWDG
 config_gwdg_models_error#:#Could not fetch available GWDG models
 config_google_key_label#:#Google Gemini API Key
 config_google_key_info#:#Enter your Google Gemini API key
+config_openai_model_label#:#OpenAI Model
+config_openai_key_label#:#OpenAI API Key
+config_openai_key_info#:#Enter your OpenAI API key from https://platform.openai.com/api-keys
 config_msg_success#:#Configuration saved successfully
