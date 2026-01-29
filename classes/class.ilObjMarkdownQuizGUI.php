@@ -198,9 +198,8 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
 
         $form_action = $this->ctrl->getLinkTargetByClass("ilObjMarkdownQuizGUI", "generate");
         
-        // Load last used prompt from user preferences
-        global $DIC;
-        $last_prompt = $DIC->user()->getPref('mdquiz_last_prompt') ?: 'Generate a quiz about ';
+        // Load last used prompt from this quiz object
+        $last_prompt = $this->object->getLastPrompt() ?: 'Generate a quiz about ';
         
         $prompt_field = $this->factory->input()->field()->textarea("Prompt", "Write your custom prompt for the AI. Use placeholders: {difficulty} and {question_count}")
             ->withValue($last_prompt)
@@ -211,10 +210,10 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             "medium" => "Medium - Intermediate understanding",
             "hard" => "Hard - Advanced concepts",
             "mixed" => "Mixed - Variety of difficulty levels"
-        ])->withValue("medium")->withRequired(true);
+        ])->withValue($this->object->getLastDifficulty())->withRequired(true);
         
         $question_count_field = $this->factory->input()->field()->numeric("Number of Questions", "How many questions to generate")
-            ->withValue(5)
+            ->withValue($this->object->getLastQuestionCount())
             ->withAdditionalTransformation(
                 $this->refinery->custom()->transformation(fn ($v) => max(1, min(20, (int)$v)))
             )
@@ -223,22 +222,31 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $context_field = $this->factory->input()->field()->textarea(
             "Additional Context (Optional)",
             "Paste content from a PDF or any additional text to provide context for the quiz generation."
-        )->withValue("");
+        )->withValue($this->object->getLastContext());
         
         // Get available files from parent container
         $available_files = $this->getAvailableFiles();
+        
+        // Validate saved file ref_id - reset if deleted or inaccessible
+        $saved_ref_id = $this->object->getLastFileRefId();
+        if ($saved_ref_id > 0 && !isset($available_files[$saved_ref_id])) {
+            // File was deleted or is no longer accessible, reset to 0
+            $saved_ref_id = 0;
+            $this->object->setLastFileRefId(0);
+            $this->object->update();
+        }
         
         if (!empty($available_files)) {
             $file_ref_field = $this->factory->input()->field()->select(
                 "ILIAS File (Optional)",
                 $available_files,
                 "Select a file from this course/folder to use its content as context."
-            )->withValue(0);
+            )->withValue((string)$saved_ref_id);
         } else {
             $file_ref_field = $this->factory->input()->field()->numeric(
                 "ILIAS File Reference (Optional)",
                 "Enter the ref_id of an ILIAS File object to use its content as context."
-            )->withValue(0);
+            )->withValue($saved_ref_id);
         }
 
         $form = $this->factory->input()->container()->form()->standard(
@@ -261,10 +269,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             if ($data) {
                 try {
                     file_put_contents('/tmp/mdquiz_debug.log', "Calling generateMarkdownQuiz\n", FILE_APPEND);
-                    
-                    // Save prompt to user preferences
-                    global $DIC;
-                    $DIC->user()->writePref('mdquiz_last_prompt', $data['prompt']);
                     
                     // Get context from textarea or file
                     $context = $data['context'] ?? '';
@@ -295,6 +299,11 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                         $this->tpl->setOnScreenMessage('failure', 'AI returned empty content');
                     } else {
                         $this->object->setMarkdownContent($markdown);
+                        $this->object->setLastPrompt($data['prompt']);
+                        $this->object->setLastDifficulty($data['difficulty']);
+                        $this->object->setLastQuestionCount((int)$data['question_count']);
+                        $this->object->setLastContext($data['context'] ?? '');
+                        $this->object->setLastFileRefId((int)($data['file_ref_id'] ?? 0));
                         $this->object->update();
 
                         $this->tpl->setOnScreenMessage('success', 'Quiz generated successfully!');
@@ -424,6 +433,10 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                 return $content;
             } elseif (strtolower($suffix) === 'pdf') {
                 return $this->extractTextFromPDF($content);
+            } elseif (in_array(strtolower($suffix), ['ppt', 'pptx'])) {
+                return $this->extractTextFromPowerPoint($content, strtolower($suffix));
+            } elseif (in_array(strtolower($suffix), ['doc', 'docx'])) {
+                return $this->extractTextFromWord($content, strtolower($suffix));
             } else {
                 // For other types, try to use as plain text
                 return $content;
@@ -573,6 +586,214 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         // Remove octal codes
         $str = preg_replace('/\\\\[0-7]{1,3}/', '', $str);
         return $str;
+    }
+    
+    /**
+     * Extract text from PowerPoint content (.pptx)
+     */
+    private function extractTextFromPowerPoint(string $content, string $format): string
+    {
+        try {
+            file_put_contents('/tmp/mdquiz_debug.log', "PowerPoint extraction started, format: $format, content length: " . strlen($content) . "\n", FILE_APPEND);
+            
+            if ($format !== 'pptx') {
+                file_put_contents('/tmp/mdquiz_debug.log', "Unsupported PowerPoint format: $format (only .pptx supported)\n", FILE_APPEND);
+                return '';
+            }
+            
+            // Save content to temporary file (PPTX is a ZIP archive)
+            $temp_file = tempnam(sys_get_temp_dir(), 'pptx_');
+            file_put_contents($temp_file, $content);
+            
+            $text = '';
+            
+            // Open PPTX as ZIP archive
+            $zip = new ZipArchive();
+            if ($zip->open($temp_file) === true) {
+                file_put_contents('/tmp/mdquiz_debug.log', "Successfully opened PPTX archive\n", FILE_APPEND);
+                
+                // Extract text from all slides
+                for ($i = 1; $i <= 100; $i++) { // Try up to 100 slides
+                    $slide_path = "ppt/slides/slide{$i}.xml";
+                    $slide_content = $zip->getFromName($slide_path);
+                    
+                    if ($slide_content === false) {
+                        break; // No more slides
+                    }
+                    
+                    file_put_contents('/tmp/mdquiz_debug.log', "Processing slide $i\n", FILE_APPEND);
+                    
+                    // Parse XML and extract text
+                    $slide_text = $this->extractTextFromPowerPointXML($slide_content);
+                    if (!empty($slide_text)) {
+                        $text .= "Slide $i: " . $slide_text . "\n\n";
+                    }
+                }
+                
+                $zip->close();
+            } else {
+                file_put_contents('/tmp/mdquiz_debug.log', "Failed to open PPTX as ZIP\n", FILE_APPEND);
+            }
+            
+            // Clean up temporary file
+            unlink($temp_file);
+            
+            // Clean up whitespace
+            $text = preg_replace('/\s+/', ' ', $text);
+            $text = trim($text);
+            
+            file_put_contents('/tmp/mdquiz_debug.log', "Extracted PowerPoint text length: " . strlen($text) . "\n", FILE_APPEND);
+            file_put_contents('/tmp/mdquiz_debug.log', "Text preview: " . substr($text, 0, 300) . "\n", FILE_APPEND);
+            
+            // Limit length
+            if (strlen($text) > 5000) {
+                $text = substr($text, 0, 5000) . '...';
+            }
+            
+            return $text;
+        } catch (\Exception $e) {
+            file_put_contents('/tmp/mdquiz_debug.log', "PowerPoint extraction exception: " . $e->getMessage() . "\n", FILE_APPEND);
+            return '';
+        }
+    }
+    
+    /**
+     * Extract text from PowerPoint slide XML
+     */
+    private function extractTextFromPowerPointXML(string $xml): string
+    {
+        try {
+            // Parse XML
+            $dom = new DOMDocument();
+            @$dom->loadXML($xml);
+            
+            // Get all text elements (a:t tags in PowerPoint XML)
+            $xpath = new DOMXPath($dom);
+            $xpath->registerNamespace('a', 'http://schemas.openxmlformats.org/drawingml/2006/main');
+            $text_nodes = $xpath->query('//a:t');
+            
+            $text = '';
+            foreach ($text_nodes as $node) {
+                $text .= $node->textContent . ' ';
+            }
+            
+            return trim($text);
+        } catch (\Exception $e) {
+            file_put_contents('/tmp/mdquiz_debug.log', "PowerPoint XML parsing error: " . $e->getMessage() . "\n", FILE_APPEND);
+            return '';
+        }
+    }
+    
+    /**
+     * Extract text from Word content (.docx)
+     */
+    private function extractTextFromWord(string $content, string $format): string
+    {
+        try {
+            file_put_contents('/tmp/mdquiz_debug.log', "Word extraction started, format: $format, content length: " . strlen($content) . "\n", FILE_APPEND);
+            
+            if ($format !== 'docx') {
+                file_put_contents('/tmp/mdquiz_debug.log', "Unsupported Word format: $format (only .docx supported)\n", FILE_APPEND);
+                return '';
+            }
+            
+            // Save content to temporary file (DOCX is a ZIP archive)
+            $temp_file = tempnam(sys_get_temp_dir(), 'docx_');
+            file_put_contents($temp_file, $content);
+            
+            $text = '';
+            
+            // Open DOCX as ZIP archive
+            $zip = new ZipArchive();
+            if ($zip->open($temp_file) === true) {
+                file_put_contents('/tmp/mdquiz_debug.log', "Successfully opened DOCX archive\n", FILE_APPEND);
+                
+                // Extract text from main document
+                $doc_content = $zip->getFromName('word/document.xml');
+                
+                if ($doc_content !== false) {
+                    file_put_contents('/tmp/mdquiz_debug.log', "Processing document.xml\n", FILE_APPEND);
+                    $text = $this->extractTextFromWordXML($doc_content);
+                } else {
+                    file_put_contents('/tmp/mdquiz_debug.log', "Could not find word/document.xml\n", FILE_APPEND);
+                }
+                
+                $zip->close();
+            } else {
+                file_put_contents('/tmp/mdquiz_debug.log', "Failed to open DOCX as ZIP\n", FILE_APPEND);
+            }
+            
+            // Clean up temporary file
+            unlink($temp_file);
+            
+            // Clean up whitespace
+            $text = preg_replace('/\s+/', ' ', $text);
+            $text = trim($text);
+            
+            file_put_contents('/tmp/mdquiz_debug.log', "Extracted Word text length: " . strlen($text) . "\n", FILE_APPEND);
+            file_put_contents('/tmp/mdquiz_debug.log', "Text preview: " . substr($text, 0, 300) . "\n", FILE_APPEND);
+            
+            // Limit length
+            if (strlen($text) > 5000) {
+                $text = substr($text, 0, 5000) . '...';
+            }
+            
+            return $text;
+        } catch (\Exception $e) {
+            file_put_contents('/tmp/mdquiz_debug.log', "Word extraction exception: " . $e->getMessage() . "\n", FILE_APPEND);
+            return '';
+        }
+    }
+    
+    /**
+     * Extract text from Word document XML
+     */
+    private function extractTextFromWordXML(string $xml): string
+    {
+        try {
+            // Parse XML
+            $dom = new DOMDocument();
+            @$dom->loadXML($xml);
+            
+            // Get all text elements (w:t tags in Word XML)
+            $xpath = new DOMXPath($dom);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $text_nodes = $xpath->query('//w:t');
+            
+            $text = '';
+            $last_was_paragraph = false;
+            
+            foreach ($text_nodes as $node) {
+                $text .= $node->textContent . ' ';
+            }
+            
+            // Get paragraph breaks for better formatting
+            $paragraph_nodes = $xpath->query('//w:p');
+            if ($paragraph_nodes->length > 0) {
+                // If we have paragraph structure, extract with paragraph breaks
+                $text = '';
+                foreach ($paragraph_nodes as $p_node) {
+                    $p_xpath = new DOMXPath($dom);
+                    $p_xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+                    
+                    // Get text nodes within this paragraph
+                    $p_text_nodes = $p_xpath->query('.//w:t', $p_node);
+                    $paragraph_text = '';
+                    foreach ($p_text_nodes as $t_node) {
+                        $paragraph_text .= $t_node->textContent;
+                    }
+                    
+                    if (!empty(trim($paragraph_text))) {
+                        $text .= trim($paragraph_text) . "\n";
+                    }
+                }
+            }
+            
+            return trim($text);
+        } catch (\Exception $e) {
+            file_put_contents('/tmp/mdquiz_debug.log', "Word XML parsing error: " . $e->getMessage() . "\n", FILE_APPEND);
+            return '';
+        }
     }
 
     /**

@@ -140,7 +140,7 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         $system_prompt = $this->factory->input()->field()->textarea(
             $this->plugin_object->txt("config_system_prompt_label"),
             $this->plugin_object->txt("config_system_prompt_info")
-        )->withValue(ilMarkdownQuizConfig::get("system_prompt"))->withAdditionalTransformation($this->refinery->custom()->transformation(
+        )->withValue(ilMarkdownQuizConfig::get("system_prompt") ?: $this->getDefaultSystemPrompt())->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 ilMarkdownQuizConfig::set('system_prompt', $v);
             }
@@ -294,6 +294,45 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         curl_close($curlSession);
 
         return $models;
+    }
+
+    private function getDefaultSystemPrompt(): string
+    {
+        return <<<'PROMPT'
+You are a quiz generation expert. Generate single-choice quiz questions in strict markdown format.
+
+CRITICAL RULES:
+1. Each question MUST end with a question mark (?)
+2. Each question MUST have EXACTLY 4 answer options
+3. EXACTLY ONE answer must be marked as correct with [x]
+4. All other answers must be marked with [ ]
+5. Use this exact format for each question:
+
+Question text here?
+- [x] Correct answer
+- [ ] Wrong answer 1
+- [ ] Wrong answer 2
+- [ ] Wrong answer 3
+
+QUALITY GUIDELINES:
+- Make wrong answers plausible but clearly incorrect
+- Avoid "all of the above" or "none of the above" options
+- Keep questions clear and unambiguous
+- Ensure correct answers are factually accurate
+- Match difficulty level to the requested setting
+- Base questions on provided context if available
+
+DIFFICULTY LEVELS:
+- Easy: Basic recall and comprehension
+- Medium: Application and analysis
+- Hard: Complex reasoning and synthesis
+- Mixed: Variety of difficulty levels
+
+OUTPUT FORMAT:
+Return ONLY the quiz questions in markdown format.
+Do NOT include explanations, comments, or additional text.
+Separate each question block with a blank line.
+PROMPT;
     }
 }
 
