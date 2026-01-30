@@ -161,16 +161,42 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         ilMarkdownQuizXSSProtection::setCSPHeaders();
         
         $this->tabs->activateTab("view");
-        $raw_content = $this->object->getMarkdownContent() ?: "No quiz content yet.";
+        $raw_content = $this->object->getMarkdownContent();
         
-        // SECURITY: Protect content before rendering
-        try {
-            $protected_content = ilMarkdownQuizXSSProtection::protectContent($raw_content);
-            $html_output = $this->renderQuiz($protected_content);
-        } catch (\Exception $e) {
-            $html_output = "<div class='alert alert-danger'>Error: " . 
-                          ilMarkdownQuizXSSProtection::escapeHTML($e->getMessage()) . 
-                          "</div>";
+        // Check if quiz is empty
+        if (empty($raw_content) || trim($raw_content) === '') {
+            // Show friendly message for empty quiz
+            $html_output = "
+                <div class='alert alert-info'>
+                    <h4>No Quiz Content Yet</h4>
+                    <p>This quiz doesn't have any content yet.</p>";
+            
+            if ($this->checkPermissionBool("write")) {
+                $html_output .= "
+                    <p>
+                        <strong>Get started:</strong><br>
+                        • Go to <strong>AI Generate</strong> to create questions automatically<br>
+                        • Or go to <strong>Settings</strong> to write questions manually in markdown format
+                    </p>";
+            }
+            
+            $html_output .= "</div>";
+        } else {
+            // SECURITY: Protect content before rendering
+            try {
+                $protected_content = ilMarkdownQuizXSSProtection::protectContent($raw_content);
+                $html_output = $this->renderQuiz($protected_content);
+            } catch (\Exception $e) {
+                // Show validation error (e.g., malformed markdown)
+                $html_output = "<div class='alert alert-warning'>" . 
+                              "<strong>Invalid Quiz Format:</strong> " .
+                              ilMarkdownQuizXSSProtection::escapeHTML($e->getMessage()) . 
+                              "</div>";
+                
+                if ($this->checkPermissionBool("write")) {
+                    $html_output .= "<p>Please go to <strong>Settings</strong> to fix the quiz content.</p>";
+                }
+            }
         }
         
         $panel = $this->factory->panel()->standard(

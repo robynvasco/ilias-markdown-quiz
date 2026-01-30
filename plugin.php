@@ -1,7 +1,7 @@
 <?php
 $id = "xmdq"; // Eindeutige Plugin-ID
-$version = "0.0.4";
-$ilias_min_version = "9.0";
+$version = "1.0.0";
+$ilias_min_version = "10.0";
 $ilias_max_version = "10.999";
-$responsible = "Robyn";
-$responsible_mail = "robyn@example.com";
+$responsible = "Robyn Vasco";
+$responsible_mail = "robyn.vasco@uni-hohenheim.de";
