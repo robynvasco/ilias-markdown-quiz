@@ -6,6 +6,9 @@ xmdq_add#:#Markdown Quiz hinzufügen
 xmdq_new#:#Neues Markdown Quiz
 
 config_general#:#Allgemeine Einstellungen
+config_ai_settings#:#KI-Einstellungen
+config_ai_enabled_label#:#KI-Funktionen aktivieren
+config_ai_enabled_info#:#Aktivieren Sie diese Option, um KI-gestützte Quiz-Generierung zu ermöglichen. Wenn deaktiviert, können Quizze nur manuell erstellt werden.
 config_available_services#:#Verfügbare Dienste
 config_gwdg_label#:#GWDG (Academic Cloud)
 config_google_label#:#Google Gemini API

@@ -136,6 +136,19 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
      * @throws ilMarkdownQuizException
      */
     private function buildGeneralSection(): array {
+        // AI Enable/Disable Checkbox - convert to bool for checkbox
+        $ai_enabled_value = ilMarkdownQuizConfig::get('ai_enabled', true);
+        $ai_enabled_bool = filter_var($ai_enabled_value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
+        
+        $ai_enabled = $this->factory->input()->field()->checkbox(
+            $this->plugin_object->txt("config_ai_enabled_label"),
+            $this->plugin_object->txt("config_ai_enabled_info")
+        )->withValue($ai_enabled_bool)->withAdditionalTransformation($this->refinery->custom()->transformation(
+            function ($v) {
+                ilMarkdownQuizConfig::set('ai_enabled', $v);
+            }
+        ));
+
         $available_services = ilMarkdownQuizConfig::get("available_services");
         if (!is_array($available_services) || $available_services === null) {
             $available_services = [
@@ -197,6 +210,9 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ))->withRequired(true);
 
         return [
+            "ai_settings" => $this->factory->input()->field()->section([
+                $ai_enabled
+            ], $this->plugin_object->txt("config_ai_settings")),
             "available_services" => $this->factory->input()->field()->section([
                 $gwdg_service,
                 $google_service,

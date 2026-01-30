@@ -133,7 +133,12 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
 
         if ($this->checkPermissionBool("write")) {
             $this->tabs->addTab("settings", "Settings", $DIC->ctrl()->getLinkTarget($this, "settings"));
-            $this->tabs->addTab("generate", "AI Generate", $DIC->ctrl()->getLinkTarget($this, "generate"));
+            
+            // Only show AI Generate tab if AI is enabled in admin config
+            ilMarkdownQuizConfig::load();
+            if (ilMarkdownQuizConfig::get('ai_enabled', true)) {
+                $this->tabs->addTab("generate", "AI Generate", $DIC->ctrl()->getLinkTarget($this, "generate"));
+            }
         }
 
         if ($this->checkPermissionBool("edit_permission")) {

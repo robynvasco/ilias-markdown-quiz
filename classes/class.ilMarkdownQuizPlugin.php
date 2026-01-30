@@ -92,4 +92,18 @@ class ilMarkdownQuizPlugin extends ilRepositoryObjectPlugin
     {
         return true;
     }
+
+    /**
+     * Get the title icon
+     * 
+     * Used for object list, creation GUI, info screen, export and permission tabs.
+     * Returns the SVG icon path for the plugin.
+     * 
+     * @param string $a_type The object type (should be "xmdq")
+     * @return string Path to the icon file relative to ILIAS root
+     */
+    public static function _getIcon(string $a_type): string
+    {
+        return 'Customizing/global/plugins/Services/Repository/RepositoryObject/MarkdownQuiz/templates/images/icon_xmdq.svg';
+    }
 }
