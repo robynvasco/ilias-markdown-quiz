@@ -25,21 +25,59 @@ require_once __DIR__ . '/class.ilObjMarkdownQuizUploadHandler.php';
 require_once __DIR__ . '/class.ilObjMarkdownQuizStakeholder.php';
 
 /**
+ * MarkdownQuiz GUI Controller
+ * 
+ * Main controller class handling all user interactions with quiz objects.
+ * 
+ * Key Features:
+ * - View quiz content with markdown rendering
+ * - Edit quiz settings (title, online status, content)
+ * - Generate quizzes via AI (OpenAI, Google Gemini, GWDG)
+ * - File upload and content extraction
+ * - Rate limiting and security controls
+ * 
+ * Security Measures:
+ * - Input validation on all user data
+ * - XSS protection via HTML escaping
+ * - Rate limiting (20 API calls/hour, 20 files/hour, 5s cooldown)
+ * - File type whitelist (txt, pdf, doc, docx, ppt, pptx)
+ * - SQL injection prevention via type casting
+ * 
  * @ilCtrl_isCalledBy ilObjMarkdownQuizGUI: ilRepositoryGUI, ilObjPluginDispatchGUI
  * @ilCtrl_Calls ilObjMarkdownQuizGUI: ilPermissionGUI, ilInfoScreenGUI, ilCommonActionDispatcherGUI
+ * 
+ * @author  Your Name
+ * @version 1.0
  */
 class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
 {
+    /** @var Factory ILIAS UI factory for creating UI components */
     private Factory $factory;
+    
+    /** @var Renderer ILIAS UI renderer for rendering components */
     private Renderer $renderer;
+    
+    /** @var \ILIAS\Refinery\Factory Data refinement factory for transformations */
     protected \ILIAS\Refinery\Factory $refinery;
+    
+    /** @var ilLanguage Language service */
     protected ilLanguage $lng;
 
+    /**
+     * Command to execute after object creation
+     * Redirects to settings to configure the new quiz
+     * 
+     * @return string Command name
+     */
     public function getAfterCreationCmd(): string
     {
         return "settings";
     }
 
+    /**
+     * Initialize dependencies after constructor
+     * Sets up UI factory, renderer, and language service
+     */
     protected function afterConstructor(): void
     {
         global $DIC;
@@ -49,16 +87,33 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $this->lng = $DIC->language();
     }
 
+    /**
+     * Get the object type identifier
+     * 
+     * @return string Type identifier "xmdq"
+     */
     public function getType(): string
     {
         return "xmdq";
     }
 
+    /**
+     * Get the default command
+     * Command executed when user opens the quiz without specifying an action
+     * 
+     * @return string Command name "view"
+     */
     public function getStandardCmd(): string
     {
         return "view";
     }
 
+    /**
+     * Command dispatcher
+     * Routes commands to appropriate handler methods
+     * 
+     * @param string $cmd Command to execute
+     */
     public function performCommand(string $cmd): void
     {
         $this->checkPermission("read");
@@ -66,6 +121,10 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $this->{$cmd}();
     }
 
+    /**
+     * Initialize tab structure
+     * Creates navigation tabs based on user permissions
+     */
     protected function setTabs(): void
     {
         global $DIC;
@@ -87,7 +146,14 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     }
 
     /**
-     * QUIZ ANZEIGEN (Magazin-Ansicht)
+     * Display quiz view (default view for users)
+     * 
+     * Renders the quiz content with markdown formatting and interactive features.
+     * 
+     * Security:
+     * - Sets Content Security Policy headers
+     * - Sanitizes content before rendering
+     * - Escapes HTML to prevent XSS
      */
     public function view(): void
     {
@@ -115,6 +181,16 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $this->tpl->setContent($this->renderer->render($panel));
     }
 
+    /**
+     * Settings form handler
+     * 
+     * Displays and processes the settings form for:
+     * - Quiz title
+     * - Online/offline status
+     * - Markdown content
+     * 
+     * Uses ILIAS UI components with transformations for automatic saving
+     */
     public function settings(): void
     {
         $this->checkPermission("write");
@@ -140,6 +216,16 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         $this->tpl->setContent($this->renderer->render($form));
     }
 
+    /**
+     * Build the settings form
+     * 
+     * Creates a form with inline save functionality using transformations:
+     * - Each field saves immediately when form is submitted
+     * - Uses ILIAS UI components for modern interface
+     * - Handles title, online status, and markdown content
+     * 
+     * @return \ILIAS\UI\Component\Input\Container\Form\Form The configured form
+     */
     private function buildSettingsForm(): \ILIAS\UI\Component\Input\Container\Form\Form
     {
         // Set form action to explicitly point back to settings command
@@ -197,7 +283,22 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     }
 
     /**
-     * GENERATE QUIZ WITH AI
+     * AI Quiz Generation View
+     * 
+     * Main interface for generating quizzes using AI services.
+     * 
+     * Features:
+     * - Supports OpenAI, Google Gemini, and GWDG Academic Cloud
+     * - Prompt input with 5000 char limit
+     * - Optional context field (10000 chars) or file selection
+     * - Difficulty selection (easy, medium, hard, mixed)
+     * - Question count (1-20)
+     * - Pre-fills last used values for convenience
+     * 
+     * Security:
+     * - Rate limiting enforced
+     * - Input validation
+     * - File type whitelist
      */
     public function generate(): void
     {

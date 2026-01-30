@@ -7,19 +7,46 @@ require_once __DIR__ . '/platform/class.ilMarkdownQuizEncryption.php';
 use platform\ilMarkdownQuizConfig;
 use platform\ilMarkdownQuizEncryption;
 
+/**
+ * MarkdownQuiz Plugin Main Class
+ * 
+ * This is the central plugin class that defines the plugin's identity and
+ * handles lifecycle events (installation, update, uninstall).
+ * 
+ * Features:
+ * - Automatic API key encryption migration on update
+ * - Clean uninstall with complete data removal
+ * - Support for object copying
+ * 
+ * @author  Your Name
+ * @version 1.0
+ */
 class ilMarkdownQuizPlugin extends ilRepositoryObjectPlugin
 {
+    /** @var string Plugin identifier (must start with 'x' for plugin types) */
     public const PLUGIN_ID = "xmdq";
+    
+    /** @var string Human-readable plugin name */
     public const PLUGIN_NAME = "MarkdownQuiz";
 
+    /**
+     * Get the plugin name
+     * Required by ILIAS plugin interface
+     * 
+     * @return string The plugin name
+     */
     public function getPluginName(): string
     {
         return self::PLUGIN_NAME;
     }
     
     /**
-     * Called after plugin update
-     * Handles data migration and encryption of existing API keys
+     * Post-update hook
+     * 
+     * Called automatically by ILIAS after plugin is updated to a new version.
+     * Handles data migration tasks:
+     * - Encrypts existing plaintext API keys with AES-256-CBC
+     * - Errors are logged but don't fail the update
      */
     protected function afterUpdate(): void
     {
@@ -32,6 +59,15 @@ class ilMarkdownQuizPlugin extends ilRepositoryObjectPlugin
         }
     }
 
+    /**
+     * Custom uninstall cleanup
+     * 
+     * Removes all plugin data from the database:
+     * - xmdq_config: Configuration including encrypted API keys
+     * - rep_robj_xmdq_data: Quiz content and metadata
+     * 
+     * Note: ILIAS handles removing object_data entries automatically
+     */
     protected function uninstallCustom(): void
     {
         global $DIC;
@@ -47,6 +83,11 @@ class ilMarkdownQuizPlugin extends ilRepositoryObjectPlugin
         }
     }
 
+    /**
+     * Allow copying of quiz objects
+     * 
+     * @return bool True to enable copy functionality in ILIAS
+     */
     public function allowCopy(): bool
     {
         return true;
