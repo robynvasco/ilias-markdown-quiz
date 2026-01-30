@@ -8,8 +8,20 @@ declare(strict_types=1);
 namespace platform;
 
 /**
- * Class ilMarkdownQuizXSSProtection
- * Provides XSS protection for user-generated content
+ * XSS Protection Service for MarkdownQuiz Plugin
+ * 
+ * Provides multiple layers of XSS protection:
+ * - Content Security Policy headers
+ * - Input sanitization (strip dangerous patterns)
+ * - Markdown structure validation
+ * - HTML output escaping
+ * 
+ * Max lengths:
+ * - Question: 500 chars
+ * - Option: 300 chars
+ * - Total: 10,000 chars
+ * 
+ * @package platform
  */
 class ilMarkdownQuizXSSProtection
 {
@@ -39,7 +51,11 @@ class ilMarkdownQuizXSSProtection
     
     /**
      * Set Content Security Policy headers
-     * Prevents inline scripts and restricts resource loading
+     * 
+     * Restricts resource loading and prevents inline scripts.
+     * Also sets X-Frame-Options, X-XSS-Protection, etc.
+     * 
+     * @return void
      */
     public static function setCSPHeaders(): void
     {
@@ -70,10 +86,15 @@ class ilMarkdownQuizXSSProtection
     }
     
     /**
-     * Sanitize markdown content before rendering
-     * @param string $markdown Raw markdown content
+     * Sanitize markdown content
+     * 
+     * - Strips all HTML tags
+     * - Removes dangerous patterns (script, javascript:, event handlers)
+     * - Validates length
+     * 
+     * @param string $markdown Raw markdown
      * @return string Sanitized markdown
-     * @throws ilMarkdownQuizException
+     * @throws ilMarkdownQuizException If content too long or contains dangerous patterns
      */
     public static function sanitizeMarkdown(string $markdown): string
     {
@@ -106,11 +127,16 @@ class ilMarkdownQuizXSSProtection
     }
     
     /**
-     * Validate markdown structure
-     * Ensures content follows expected quiz format
+     * Validate markdown quiz structure
+     * 
+     * Ensures:
+     * - At least one question (ending with ?)
+     * - At least one answer option (- [x] or - [ ])
+     * - Individual length limits respected
+     * 
      * @param string $markdown Markdown content
      * @return bool True if valid
-     * @throws ilMarkdownQuizException
+     * @throws ilMarkdownQuizException If structure invalid
      */
     public static function validateMarkdownStructure(string $markdown): bool
     {
@@ -161,10 +187,10 @@ class ilMarkdownQuizXSSProtection
     }
     
     /**
-     * Escape HTML output safely
-     * Uses htmlspecialchars with proper flags
+     * Escape HTML for safe output
+     * 
      * @param string $text Text to escape
-     * @return string Escaped text
+     * @return string HTML-safe text
      */
     public static function escapeHTML(string $text): string
     {
@@ -172,8 +198,13 @@ class ilMarkdownQuizXSSProtection
     }
     
     /**
-     * Sanitize HTML output (alternative to DOMPurify for PHP)
-     * Removes dangerous tags and attributes
+     * Sanitize HTML output (PHP alternative to DOMPurify)
+     * 
+     * Removes:
+     * - Dangerous tags (script, iframe, object, etc.)
+     * - Event handler attributes (onclick, onload, etc.)
+     * - javascript: and data:text/html URIs
+     * 
      * @param string $html HTML content
      * @return string Sanitized HTML
      */

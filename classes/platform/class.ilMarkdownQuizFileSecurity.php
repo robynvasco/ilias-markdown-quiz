@@ -8,8 +8,15 @@ declare(strict_types=1);
 namespace platform;
 
 /**
- * Class ilMarkdownQuizFileSecurity
- * Provides security validations for file processing
+ * File Security Service for MarkdownQuiz Plugin
+ * 
+ * Provides security validations for file uploads and processing:
+ * - File size limits (10MB default)
+ * - Magic byte validation (file signature checks)
+ * - ZIP bomb protection (compression ratio checks)
+ * - Processing timeouts
+ * 
+ * @package platform
  */
 class ilMarkdownQuizFileSecurity
 {
@@ -34,10 +41,11 @@ class ilMarkdownQuizFileSecurity
     ];
     
     /**
-     * Validate file size
+     * Validate file size against limit
+     * 
      * @param string $content File content
-     * @param int|null $custom_limit Custom size limit in bytes
-     * @throws ilMarkdownQuizException
+     * @param int|null $custom_limit Custom size limit in bytes (default: 10MB)
+     * @throws ilMarkdownQuizException If file exceeds limit
      */
     public static function validateFileSize(string $content, ?int $custom_limit = null): void
     {
@@ -54,10 +62,14 @@ class ilMarkdownQuizFileSecurity
     }
     
     /**
-     * Validate file magic bytes (file signature)
+     * Validate file magic bytes (signature)
+     * 
+     * Checks first 4 bytes against known file type signatures.
+     * Protects against file extension spoofing.
+     * 
      * @param string $content File content
      * @param string $expected_type Expected file type (pdf, zip, txt)
-     * @return bool True if valid or no signature check needed
+     * @return bool True if valid or no check needed
      */
     public static function validateMagicBytes(string $content, string $expected_type): bool
     {
@@ -86,8 +98,13 @@ class ilMarkdownQuizFileSecurity
     
     /**
      * Check for ZIP bomb attack
+     * 
+     * Validates:
+     * - Uncompressed size < 50MB
+     * - Compression ratio < 10:1
+     * 
      * @param string $zip_path Path to temporary ZIP file
-     * @throws ilMarkdownQuizException
+     * @throws ilMarkdownQuizException If ZIP bomb detected
      */
     public static function validateZipSafety(string $zip_path): void
     {

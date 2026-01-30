@@ -2,7 +2,7 @@
 declare(strict_types=1);
 /**
  *  This file is part of the Markdown Quiz Repository Object plugin for ILIAS
- *  This plugin is adapted from the AI Chat plugin.
+ *  
  */
 
 use ILIAS\UI\Factory;
@@ -15,6 +15,17 @@ require_once __DIR__ . '/platform/class.ilMarkdownQuizConfig.php';
 require_once __DIR__ . '/platform/class.ilMarkdownQuizException.php';
 
 /**
+ * Configuration GUI for MarkdownQuiz plugin administration.
+ * 
+ * Provides tabbed interface for configuring:
+ * - General settings (AI enable/disable, service selection, system prompt)
+ * - GWDG Academic Cloud (API key, model selection, streaming)
+ * - Google Gemini (API key, model selection)
+ * - OpenAI ChatGPT (API key, model selection)
+ * 
+ * Uses ILIAS UI Factory for form generation and validation.
+ * All API keys are automatically encrypted via ilMarkdownQuizConfig.
+ * 
  * @ilCtrl_IsCalledBy ilMarkdownQuizConfigGUI: ilObjComponentSettingsGUI
  */
 class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
@@ -27,6 +38,20 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     protected ilTabsGUI $tabs;
     protected $request;
 
+    /**
+     * Main controller - routes to appropriate configuration section.
+     * 
+     * Available commands:
+     * - configure/configureGeneral: AI enable/disable, service selection, system prompt
+     * - configureGWDG: GWDG Academic Cloud settings
+     * - configureGoogle: Google Gemini settings
+     * - configureOpenAI: OpenAI ChatGPT settings
+     * 
+     * Checks if xmdq_config table exists before proceeding.
+     * Initializes tabs and renders appropriate form.
+     * 
+     * @param string $cmd Command to execute
+     */
     public function performCommand($cmd): void
     {
         global $DIC;
@@ -68,6 +93,12 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
    $this->tpl->setContent($rendered);
     }
 
+    /**
+     * Initialize admin configuration tabs.
+     * 
+     * Creates 4 tabs: General, GWDG, Google Gemini, OpenAI ChatGPT.
+     * Sets active tab based on current command from control flow.
+     */
     protected function initTabs(): void
     {
         $this->tabs->addTab(
@@ -116,6 +147,16 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     }
 
     /**
+     * Build configuration form sections for specific command.
+     * 
+     * Routes to appropriate section builder:
+     * - buildGeneralSection(): AI toggle, service selection, system prompt
+     * - buildGWDGSection(): GWDG API key, models, streaming
+     * - buildGoogleSection(): Google API key, model selection
+     * - buildOpenAISection(): OpenAI API key, model selection
+     * 
+     * @param string $cmd Command name determining which section to build
+     * @return array Form sections with input fields
      * @throws ilMarkdownQuizException
      */
     private function buildForm(string $cmd): array
@@ -133,6 +174,17 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     }
 
     /**
+     * Build General settings section.
+     * 
+     * Contains:
+     * - AI enabled checkbox (enable/disable AI features globally)
+     * - Service checkboxes (GWDG, Google Gemini, OpenAI)
+     * - System prompt textarea (AI quiz generation instructions)
+     * 
+     * Service selections are stored as JSON in available_services config.
+     * System prompt uses default template if not customized.
+     * 
+     * @return array Form section with general configuration inputs
      * @throws ilMarkdownQuizException
      */
     private function buildGeneralSection(): array {
@@ -225,6 +277,16 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     }
 
     /**
+     * Build GWDG Academic Cloud settings section.
+     * 
+     * Contains:
+     * - Model multiselect (fetched dynamically from GWDG API if key is set)
+     * - API key password field (auto-encrypted on save)
+     * - Streaming checkbox (enable/disable response streaming)
+     * 
+     * Models are loaded via getGWDGModels() when API key is already configured.
+     * 
+     * @return array Form section with GWDG configuration inputs
      * @throws ilMarkdownQuizException
      */
     private function buildGWDGSection(): array {
@@ -286,6 +348,15 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ];
     }
 
+    /**
+     * Build Google Gemini settings section.
+     * 
+     * Contains:
+     * - API key password field (auto-encrypted on save)
+     * - Note: Model selection removed - using default gemini-2.0-flash-exp
+     * 
+     * @return array Form section with Google Gemini configuration inputs
+     */
     private function buildGoogleSection(): array {
         $inputs = [];
 
@@ -305,6 +376,15 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ];
     }
 
+    /**
+     * Build OpenAI ChatGPT settings section.
+     * 
+     * Contains:
+     * - Model selection (gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-4, gpt-3.5-turbo)
+     * - API key password field (auto-encrypted on save)
+     * 
+     * @return array Form section with OpenAI configuration inputs
+     */
     private function buildOpenAISection(): array {
         $inputs = [];
 
@@ -341,6 +421,16 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ];
     }
 
+    /**
+     * Render form with given sections.
+     * 
+     * Creates ILIAS standard form, handles POST submission,
+     * triggers save() on successful validation.
+     * 
+     * @param string $form_action Form submit URL
+     * @param array $sections Form sections from build methods
+     * @return string Rendered HTML form
+     */
     private function renderForm(string $form_action, array $sections): string
     {
         $form = $this->factory->input()->container()->form()->standard(
@@ -359,6 +449,15 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         return $this->renderer->render($form);
     }
 
+    /**
+     * Save configuration to database.
+     * 
+     * Triggers ilMarkdownQuizConfig::save() which persists all
+     * pending changes to xmdq_config table.
+     * API keys are automatically encrypted before storage.
+     * 
+     * Displays success message after save.
+     */
     public function save(): void
     {
         ilMarkdownQuizConfig::save();
@@ -366,6 +465,17 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         $this->tpl->setOnScreenMessage("success", $this->plugin_object->txt('config_msg_success'));
     }
 
+    /**
+     * Fetch available models from GWDG Academic Cloud API.
+     * 
+     * Makes GET request to https://chat-ai.academiccloud.de/v1/models
+     * with Bearer token authentication. Respects ILIAS proxy settings.
+     * 
+     * Timeout: 10 seconds
+     * 
+     * @param string $api_key GWDG API key for authentication
+     * @return array Associative array of model_id => model_name
+     */
     private function getGWDGModels(string $api_key): array
     {
         $curlSession = curl_init();
@@ -403,6 +513,23 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         return $models;
     }
 
+    /**
+     * Get default system prompt for AI quiz generation.
+     * 
+     * Comprehensive prompt template with placeholders:
+     * - [QUESTION_COUNT]: Number of questions to generate
+     * - [DIFFICULTY]: Difficulty level (Easy/Medium/Hard/Mixed)
+     * 
+     * Enforces strict markdown format:
+     * - Question text ending with "?"
+     * - Exactly 4 answer options per question
+     * - One correct answer marked with [x]
+     * - Three wrong answers marked with [ ]
+     * 
+     * Includes quality guidelines and difficulty definitions.
+     * 
+     * @return string Default system prompt template
+     */
     private function getDefaultSystemPrompt(): string
     {
         // Use [PLACEHOLDER] format to avoid ILIAS template processing

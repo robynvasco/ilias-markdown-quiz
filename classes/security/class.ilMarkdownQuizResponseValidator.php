@@ -5,13 +5,30 @@ namespace security;
 
 /**
  * API Response Schema Validator
- * Validates API responses match expected structure to prevent injection attacks
+ * 
+ * Validates API responses against expected structure:
+ * - Schema validation (required fields present)
+ * - Security checks (script tags, SQL patterns, etc.)
+ * - Quiz format validation (questions, options, correct answers)
+ * 
+ * Prevents:
+ * - Injection attacks via malformed responses
+ * - DoS via oversized responses (100KB limit)
+ * - Invalid quiz structures
+ * 
+ * @package security
  */
 class ilMarkdownQuizResponseValidator
 {
     /**
-     * Validate OpenAI API response structure
-     * @throws \Exception if response is invalid
+     * Validate OpenAI response structure
+     * 
+     * Checks:
+     * - choices[0].message.content exists and is non-empty string
+     * - No suspicious patterns (scripts, SQL, javascript:)
+     * 
+     * @param array $response Decoded JSON response
+     * @throws \Exception If invalid structure or security violation
      */
     public static function validateOpenAIResponse(array $response): void
     {
@@ -45,8 +62,14 @@ class ilMarkdownQuizResponseValidator
     }
     
     /**
-     * Validate Google Gemini API response structure
-     * @throws \Exception if response is invalid
+     * Validate Google Gemini response structure
+     * 
+     * Checks:
+     * - candidates[0].content.parts[0].text exists and is non-empty
+     * - No suspicious patterns
+     * 
+     * @param array $response Decoded JSON response
+     * @throws \Exception If invalid structure or security violation
      */
     public static function validateGoogleResponse(array $response): void
     {
@@ -98,8 +121,17 @@ class ilMarkdownQuizResponseValidator
     }
     
     /**
-     * Check content for suspicious patterns that might indicate injection
-     * @throws \Exception if suspicious patterns detected
+     * Check content for injection patterns
+     * 
+     * Rejects:
+     * - <script> tags
+     * - <?php code
+     * - SQL keywords (DROP, DELETE, UPDATE, INSERT)
+     * - javascript: protocol in markdown images
+     * - Content > 100KB
+     * 
+     * @param string $content Response content
+     * @throws \Exception If suspicious pattern detected
      */
     private static function validateContentSafety(string $content): void
     {
@@ -130,8 +162,16 @@ class ilMarkdownQuizResponseValidator
     }
     
     /**
-     * Validate markdown quiz format structure
-     * @throws \Exception if format is invalid
+     * Validate markdown quiz format
+     * 
+     * Requirements:
+     * - Questions end with '?'
+     * - Each question has exactly 4 options (- [x] or - [ ])
+     * - Exactly 1 correct answer per question
+     * 
+     * @param string $markdown Quiz content
+     * @return array Parsed questions with validation
+     * @throws \Exception If format invalid (with detailed error messages)
      */
     public static function validateMarkdownQuizFormat(string $markdown): array
     {

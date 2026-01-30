@@ -4,9 +4,21 @@ declare(strict_types=1);
 namespace security;
 
 /**
- * Circuit Breaker Pattern Implementation
- * Tracks API failures and temporarily disables failing services
- * to prevent cascading failures and improve system resilience
+ * Circuit Breaker Pattern for API Resilience
+ * 
+ * Prevents cascading failures by temporarily disabling failing services.
+ * 
+ * States:
+ * - CLOSED: Normal operation
+ * - OPEN: Service disabled (after 5 failures)
+ * - HALF_OPEN: Testing recovery (after 60s timeout)
+ * 
+ * Thresholds:
+ * - Open circuit after 5 failures
+ * - Retry after 60 seconds
+ * - Require 2 successes to close
+ * 
+ * @package security
  */
 class ilMarkdownQuizCircuitBreaker
 {
@@ -21,7 +33,12 @@ class ilMarkdownQuizCircuitBreaker
     private const SUCCESS_THRESHOLD = 2;        // Successes needed to close circuit
     
     /**
-     * Record a successful API call
+     * Record successful API call
+     * 
+     * In HALF_OPEN state: increments success counter, closes circuit after 2 successes
+     * In CLOSED state: resets failure counter
+     * 
+     * @param string $service Service name (e.g., 'openai', 'google', 'gwdg')
      */
     public static function recordSuccess(string $service): void
     {
@@ -52,7 +69,12 @@ class ilMarkdownQuizCircuitBreaker
     }
     
     /**
-     * Record a failed API call
+     * Record failed API call
+     * 
+     * In HALF_OPEN state: reopens circuit immediately
+     * In CLOSED state: increments failure counter, opens after 5 failures
+     * 
+     * @param string $service Service name
      */
     public static function recordFailure(string $service): void
     {
@@ -90,7 +112,11 @@ class ilMarkdownQuizCircuitBreaker
     
     /**
      * Check if service is available
-     * @throws \Exception if circuit is open
+     * 
+     * If OPEN: checks if timeout expired (60s), moves to HALF_OPEN if ready
+     * 
+     * @param string $service Service name
+     * @throws \Exception If circuit is open and timeout not expired
      */
     public static function checkAvailability(string $service): void
     {
@@ -115,7 +141,10 @@ class ilMarkdownQuizCircuitBreaker
     }
     
     /**
-     * Get current circuit state for a service
+     * Get current circuit state
+     * 
+     * @param string $service Service name
+     * @return string 'closed', 'open', or 'half_open'
      */
     public static function getState(string $service): string
     {
@@ -127,7 +156,9 @@ class ilMarkdownQuizCircuitBreaker
     }
     
     /**
-     * Get circuit breaker status for all services
+     * Get status for all services (admin dashboard)
+     * 
+     * @return array Service status with state, failures, successes, last_failure_time
      */
     public static function getStatus(): array
     {

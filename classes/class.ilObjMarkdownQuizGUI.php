@@ -21,8 +21,6 @@ require_once __DIR__ . '/ai/class.ilMarkdownQuizLLM.php';
 require_once __DIR__ . '/ai/class.ilMarkdownQuizGWDG.php';
 require_once __DIR__ . '/ai/class.ilMarkdownQuizGoogleAI.php';
 require_once __DIR__ . '/ai/class.ilMarkdownQuizOpenAI.php';
-require_once __DIR__ . '/class.ilObjMarkdownQuizUploadHandler.php';
-require_once __DIR__ . '/class.ilObjMarkdownQuizStakeholder.php';
 
 /**
  * MarkdownQuiz GUI Controller

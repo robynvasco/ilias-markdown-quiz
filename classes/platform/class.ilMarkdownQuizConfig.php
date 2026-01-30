@@ -14,7 +14,18 @@ namespace platform;
 require_once __DIR__ . '/class.ilMarkdownQuizEncryption.php';
 
 /**
- * Class ilMarkdownQuizConfig
+ * Configuration Manager for MarkdownQuiz Plugin
+ * 
+ * Handles loading, storing, and encrypting plugin configuration values.
+ * Automatically encrypts sensitive data (API keys) using AES-256-CBC.
+ * 
+ * Features:
+ * - Lazy loading from database
+ * - Automatic encryption of API keys
+ * - JSON encoding for complex values
+ * - Transaction-safe updates
+ * 
+ * @package platform
  */
 class ilMarkdownQuizConfig
 {
@@ -29,9 +40,13 @@ class ilMarkdownQuizConfig
     ];
 
     /**
-     * Load the plugin configuration
+     * Load plugin configuration from database
+     * 
+     * Loads all config values into static cache. JSON values are automatically decoded.
+     * Silently handles missing table during installation/uninstallation.
+     * 
      * @return void
-     * @throws ilMarkdownQuizException
+     * @throws ilMarkdownQuizException On database errors
      */
     public static function load(): void
     {
@@ -71,10 +86,13 @@ class ilMarkdownQuizConfig
     }
 
     /**
-     * Set the plugin configuration value for a given key to a given value
-     * Automatically encrypts sensitive values (API keys)
-     * @param string $key
-     * @param $value
+     * Set configuration value
+     * 
+     * Automatically encrypts API keys before storing.
+     * Marks key as updated for save().
+     * 
+     * @param string $key Configuration key
+     * @param mixed $value Value to store
      * @return void
      */
     public static function set(string $key, $value): void
@@ -98,11 +116,14 @@ class ilMarkdownQuizConfig
     }
 
     /**
-     * Gets the plugin configuration value for a given key
-     * Automatically decrypts sensitive values (API keys)
-     * @param string $key
-     * @return mixed|string
-     * @throws ilMarkdownQuizException
+     * Get configuration value
+     * 
+     * Automatically decrypts API keys when retrieving.
+     * Falls back to database if not in cache.
+     * 
+     * @param string $key Configuration key
+     * @return mixed Configuration value
+     * @throws ilMarkdownQuizException On database errors
      */
     public static function get(string $key)
     {
@@ -117,10 +138,13 @@ class ilMarkdownQuizConfig
     }
 
     /**
-     * Gets the plugin configuration value for a given key from the database
-     * @param string $key
-     * @return mixed|string
-     * @throws ilMarkdownQuizException
+     * Get configuration value directly from database
+     * 
+     * Bypasses cache and queries database. JSON values are automatically decoded.
+     * 
+     * @param string $key Configuration key
+     * @return mixed Configuration value or empty string if not found
+     * @throws ilMarkdownQuizException On database errors
      */
     public static function getFromDB(string $key)
     {
@@ -152,8 +176,9 @@ class ilMarkdownQuizConfig
     }
 
     /**
-     * Gets all the plugin configuration values
-     * @return array
+     * Get all configuration values
+     * 
+     * @return array All config values from cache
      */
     public static function getAll(): array
     {
@@ -161,8 +186,12 @@ class ilMarkdownQuizConfig
     }
 
     /**
-     * Save the plugin configuration if the parameter is updated
-     * @return bool|string
+     * Save updated configuration values to database
+     * 
+     * Only saves values marked as updated. Uses INSERT ON DUPLICATE KEY UPDATE.
+     * Arrays are JSON-encoded before storage.
+     * 
+     * @return bool|string True on success, error message on failure
      */
     public static function save()
     {

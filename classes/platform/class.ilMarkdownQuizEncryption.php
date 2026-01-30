@@ -8,8 +8,16 @@ declare(strict_types=1);
 namespace platform;
 
 /**
- * Class ilMarkdownQuizEncryption
- * Handles encryption and decryption of sensitive configuration values
+ * Encryption Service for MarkdownQuiz Plugin
+ * 
+ * Provides AES-256-CBC encryption for sensitive config values (API keys).
+ * Uses PBKDF2 key derivation from ILIAS client ID and password salt.
+ * 
+ * Format: base64(IV + encrypted_data)
+ * - IV: 16 bytes (random per encryption)
+ * - Key: 32 bytes (derived from client ID + salt)
+ * 
+ * @package platform
  */
 class ilMarkdownQuizEncryption
 {
@@ -20,9 +28,12 @@ class ilMarkdownQuizEncryption
     private const IV_LENGTH = 16;
     
     /**
-     * Get encryption key derived from ILIAS installation
-     * Uses a combination of client ID and secret salt
-     * @return string
+     * Get encryption key using PBKDF2 derivation
+     * 
+     * Derives 32-byte key from ILIAS client ID and password salt.
+     * Ensures keys are unique per installation but consistent across requests.
+     * 
+     * @return string 32-byte binary key
      */
     private static function getEncryptionKey(): string
     {

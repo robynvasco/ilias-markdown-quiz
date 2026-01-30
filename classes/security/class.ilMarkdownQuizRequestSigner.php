@@ -8,13 +8,27 @@ use platform\ilMarkdownQuizConfig;
 require_once __DIR__ . '/../platform/class.ilMarkdownQuizConfig.php';
 
 /**
- * Request Signing for API Calls
- * Adds HMAC signatures to verify request authenticity and prevent tampering
+ * HMAC Request Signing for API Audit Trail
+ * 
+ * Adds HMAC-SHA256 signatures to API requests:
+ * - Verifies request authenticity
+ * - Prevents tampering
+ * - Includes timestamp (5-minute expiry)
+ * 
+ * Format: base64(timestamp:signature)
+ * Signature: HMAC-SHA256(timestamp:service:canonical_payload, API_key)
+ * 
+ * @package security
  */
 class ilMarkdownQuizRequestSigner
 {
     /**
-     * Generate HMAC signature for request
+     * Generate HMAC signature for API request
+     * 
+     * @param string $service Service name (for audit trail)
+     * @param array $payload Request payload
+     * @param string $apiKey API key (used as signing key)
+     * @return string Base64-encoded signature (timestamp:signature)
      */
     public static function signRequest(string $service, array $payload, string $apiKey): string
     {
@@ -35,7 +49,18 @@ class ilMarkdownQuizRequestSigner
     }
     
     /**
-     * Verify request signature
+     * Verify HMAC signature
+     * 
+     * Checks:
+     * - Signature format valid
+     * - Timestamp within 5 minutes
+     * - HMAC matches expected value
+     * 
+     * @param string $service Service name
+     * @param array $payload Request payload
+     * @param string $receivedSignature Signature from request header
+     * @param string $apiKey API key
+     * @return bool True if signature valid
      */
     public static function verifySignature(string $service, array $payload, string $receivedSignature, string $apiKey): bool
     {
@@ -82,7 +107,10 @@ class ilMarkdownQuizRequestSigner
     }
     
     /**
-     * Add request metadata for logging/auditing
+     * Create request metadata for audit logging
+     * 
+     * @param string $service Service name
+     * @return array Metadata: request_id, timestamp, service, client_ip, user_agent
      */
     public static function createRequestMetadata(string $service): array
     {

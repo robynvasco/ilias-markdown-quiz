@@ -4,8 +4,17 @@ declare(strict_types=1);
 namespace security;
 
 /**
- * Certificate Pinning for API Calls
- * Verifies SSL certificate fingerprints to prevent MITM attacks
+ * Certificate Pinning for HTTPS API Calls
+ * 
+ * Verifies SSL certificate fingerprints to prevent MITM attacks.
+ * Currently disabled by default (requires manual certificate verification).
+ * 
+ * To enable:
+ * 1. Get certificate fingerprint: openssl s_client -connect api.openai.com:443 | openssl x509 -fingerprint -sha256
+ * 2. Add to PINNED_CERTIFICATES array
+ * 3. Update periodically (certificates expire)
+ * 
+ * @package security
  */
 class ilMarkdownQuizCertificatePinner
 {
@@ -30,10 +39,14 @@ class ilMarkdownQuizCertificatePinner
     ];
     
     /**
-     * Verify certificate for a host
-     * @param string $host The hostname to verify
-     * @param resource $ch cURL handle
-     * @return bool True if certificate is valid
+     * Verify SSL certificate fingerprint
+     * 
+     * Disabled by default. Enable by adding fingerprints to PINNED_CERTIFICATES.
+     * 
+     * @param string $host Hostname (e.g., 'api.openai.com')
+     * @param resource $ch cURL handle with CURLOPT_CERTINFO enabled
+     * @return bool True if certificate valid
+     * @throws \Exception If fingerprint mismatch (potential MITM)
      */
     public static function verifyCertificate(string $host, $ch): bool
     {
@@ -103,7 +116,12 @@ class ilMarkdownQuizCertificatePinner
     }
     
     /**
-     * Configure cURL handle for certificate pinning
+     * Configure cURL for certificate pinning
+     * 
+     * Sets: SSL_VERIFYPEER, SSL_VERIFYHOST, CERTINFO, minimum TLS 1.2
+     * 
+     * @param resource $ch cURL handle
+     * @param string $host Hostname for pinning
      */
     public static function configureCurl($ch, string $host): void
     {
@@ -119,7 +137,13 @@ class ilMarkdownQuizCertificatePinner
     }
     
     /**
-     * Get current certificate fingerprint for a host (admin tool)
+     * Get current certificate fingerprint (admin tool)
+     * 
+     * Used to update PINNED_CERTIFICATES array when certificates rotate.
+     * 
+     * @param string $host Hostname
+     * @param int $port HTTPS port (default 443)
+     * @return string|null SHA256 fingerprint or null on error
      */
     public static function getCurrentFingerprint(string $host, int $port = 443): ?string
     {

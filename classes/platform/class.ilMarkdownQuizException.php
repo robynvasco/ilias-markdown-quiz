@@ -6,7 +6,11 @@ namespace platform;
 use Exception;
 
 /**
- * Class ilMarkdownQuizException
+ * Custom Exception for MarkdownQuiz Plugin
+ * 
+ * Base exception class for all plugin-specific errors.
+ * 
+ * @package platform
  */
 class ilMarkdownQuizException extends Exception
 {

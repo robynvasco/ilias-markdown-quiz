@@ -3,14 +3,17 @@
 namespace platform;
 
 /**
- * Rate Limiter for MarkdownQuiz plugin
+ * Rate Limiter for MarkdownQuiz Plugin
  * 
- * Implements rate limiting for:
- * - AI API calls (per user/hour)
- * - File processing (per user/hour)
- * - Quiz generation cooldown (per user)
+ * Implements session-based rate limiting:
+ * - AI API calls: 20 per hour
+ * - File processing: 20 per hour
+ * - Quiz generation cooldown: 10 seconds
+ * - Concurrent requests: max 3
  * 
- * @author Your Name
+ * Uses PHP sessions to track timestamps per user.
+ * 
+ * @package platform
  * @version 1.0.0
  */
 class ilMarkdownQuizRateLimiter
@@ -29,7 +32,7 @@ class ilMarkdownQuizRateLimiter
     private const KEY_CONCURRENT = 'concurrent_requests';
     
     /**
-     * Initialize session if not already started
+     * Initialize PHP session if not started
      */
     private static function initSession(): void
     {
@@ -42,7 +45,7 @@ class ilMarkdownQuizRateLimiter
      * Get rate limit data from session
      * 
      * @param string $key Rate limit key
-     * @return array Rate limit data [timestamps => [], count => int]
+     * @return array [timestamps => int[], count => int]
      */
     private static function getRateLimitData(string $key): array
     {
@@ -73,10 +76,10 @@ class ilMarkdownQuizRateLimiter
     }
     
     /**
-     * Clean up old timestamps (older than 1 hour)
+     * Remove timestamps older than 1 hour
      * 
-     * @param array $timestamps Array of Unix timestamps
-     * @return array Cleaned timestamps
+     * @param array $timestamps Unix timestamps
+     * @return array Filtered timestamps
      */
     private static function cleanOldTimestamps(array $timestamps): array
     {
@@ -87,9 +90,9 @@ class ilMarkdownQuizRateLimiter
     }
     
     /**
-     * Check if AI API call is allowed
+     * Check if API call is allowed (under rate limit)
      * 
-     * @return bool True if allowed, false if rate limit exceeded
+     * @return bool True if under limit, false if exceeded
      */
     public static function checkApiCallLimit(): bool
     {
@@ -100,7 +103,7 @@ class ilMarkdownQuizRateLimiter
     }
     
     /**
-     * Record an API call
+     * Record API call timestamp
      * 
      * @throws \Exception If rate limit exceeded
      */
