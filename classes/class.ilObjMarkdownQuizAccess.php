@@ -30,6 +30,41 @@ class ilObjMarkdownQuizAccess extends ilObjectPluginAccess
     {
         global $DIC;
         $user_id = $user_id ?? $DIC->user()->getId();
+        
+        // Check if user has write permission - admins can always access
+        if ($DIC->access()->checkAccessOfUser($user_id, 'write', '', $ref_id)) {
+            return true;
+        }
+        
+        // For read/visible permissions, check if object is online
+        if (in_array($permission, ['read', 'visible'])) {
+            if (self::_isOffline($obj_id)) {
+                // Object is offline, deny access to non-admins
+                return false;
+            }
+        }
+        
         return (bool) $DIC->access()->checkAccessOfUser($user_id, $permission, $cmd, $ref_id, "xmdq", $obj_id);
+    }
+
+    /**
+     * Check if object is offline
+     * This determines if the object is visible to regular users
+     */
+    public static function _isOffline(int $obj_id): bool
+    {
+        global $DIC;
+        $db = $DIC->database();
+        
+        $query = "SELECT is_online FROM rep_robj_xmdq_data WHERE id = " . $db->quote($obj_id, "integer");
+        $result = $db->query($query);
+        
+        if ($row = $db->fetchAssoc($result)) {
+            // is_online = 1 means online, so offline = !is_online
+            return !(bool)$row['is_online'];
+        }
+        
+        // Default to offline if not found
+        return true;
     }
 }

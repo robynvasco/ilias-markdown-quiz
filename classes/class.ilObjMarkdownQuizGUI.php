@@ -126,22 +126,14 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $form = $form->withRequest($this->request);
             $data = $form->getData();
             if ($data !== null) {
-                // Debug: Log what data we got
-                error_log("MarkdownQuiz Settings: Data received - online value: " . var_export($data['online'] ?? 'NOT SET', true));
-                
                 // Reload object to ensure we have the latest data
                 $this->object->read();
                 
-                // Debug: Log what we read from database
-                error_log("MarkdownQuiz Settings: After read - online status: " . var_export($this->object->getOnline(), true));
-                
                 // Data already saved via transformations
-                $this->tpl->setOnScreenMessage('success', 'Settings saved successfully. Online status: ' . ($this->object->getOnline() ? 'Yes' : 'No'));
+                $this->tpl->setOnScreenMessage('success', 'Settings saved successfully');
                 
                 // Rebuild form with fresh data
                 $form = $this->buildSettingsForm();
-            } else {
-                error_log("MarkdownQuiz Settings: Form validation failed or no data");
             }
         }
 
@@ -174,10 +166,6 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                         $is_online = ($v === true || $v === 1 || $v === "1");
                         $this->object->setOnline($is_online);
                         $this->object->update();
-                        
-                        // Debug logging
-                        error_log("MarkdownQuiz: Saving online status - input value: " . var_export($v, true) . ", saved as: " . var_export($is_online, true));
-                        
                         return $is_online;
                     }
                 )

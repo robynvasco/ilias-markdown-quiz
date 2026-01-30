@@ -49,8 +49,14 @@ class ilObjMarkdownQuizListGUI extends ilObjectPluginListGUI
     {
         $props = parent::getCustomProperties($a_prop);
         
-        // Hier könntest du später prüfen, ob das Quiz z.B. leer ist
-        // oder ein Enddatum erreicht hat.
+        // Show offline status
+        if (ilObjMarkdownQuizAccess::_isOffline($this->obj_id)) {
+            $props[] = [
+                "alert" => true,
+                "property" => "Status",
+                "value" => "Offline"
+            ];
+        }
         
         return $props;
     }
