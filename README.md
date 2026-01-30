@@ -1,233 +1,234 @@
 # ILIAS MarkdownQuiz Plugin
 
-Ein intelligentes Quiz-Plugin für ILIAS, das automatisch Multiple-Choice-Fragen aus Markdown-Dokumenten und anderen Dateiformaten mittels KI generiert.
+An intelligent quiz plugin for ILIAS that automatically generates multiple-choice questions from Markdown documents and other file formats using AI.
 
 ## 🎯 Features
 
-- **KI-gestützte Fragengenerierung**: Automatische Erstellung von Multiple-Choice-Fragen aus hochgeladenen Dokumenten
-- **Multi-Format-Unterstützung**: Markdown (.md), Text (.txt), PDF, PowerPoint (.ppt, .pptx), Word (.docx)
-- **Mehrere KI-Provider**: 
+- **AI-powered Question Generation**: Automatic creation of multiple-choice questions from uploaded documents
+- **Multi-Format Support**: Markdown (.md), Text (.txt), PDF, PowerPoint (.ppt, .pptx), Word (.docx)
+- **Multiple AI Providers**: 
   - OpenAI (GPT-4, GPT-4-turbo, GPT-3.5-turbo)
   - Google Gemini (gemini-pro, gemini-1.5-pro)
-  - GWDG (für deutsche Hochschulen)
-- **Online/Offline-Verwaltung**: Flexible Sichtbarkeitssteuerung für Quiz-Objekte
-- **Sofortiges Feedback**: Direktes visuelles Feedback zu richtigen und falschen Antworten
-- **Moderne UI**: Integration mit ILIAS UI Framework für intuitive Bedienung
-- **Mehrsprachig**: Deutsch und Englisch vollständig unterstützt
-- **Umfassende Sicherheit**:
-  - AES-256-GCM Verschlüsselung für API-Keys
-  - Rate Limiting zum Schutz vor Missbrauch
-  - XSS-Schutz für alle Benutzereingaben
-  - HMAC-Signierung für Antwort-Validierung
+  - GWDG (for German universities)
+- **Online/Offline Management**: Flexible visibility control for quiz objects
+- **Instant Feedback**: Direct visual feedback on correct and incorrect answers
+- **Modern UI**: Integration with ILIAS UI Framework for intuitive operation
+- **Multilingual**: Fully supported in German and English
+- **Comprehensive Security**:
+  - AES-256-GCM encryption for API keys
+  - Rate limiting to protect against abuse
+  - XSS protection for all user inputs
+  - HMAC signing for answer validation
 
-## 📋 Voraussetzungen
+## 📋 Requirements
 
-- **ILIAS**: Version 10 oder höher
-- **PHP**: Version 8.2 oder höher
+- **ILIAS**: Version 10 or higher
+- **PHP**: Version 8.2 or higher
 - **MySQL/MariaDB**: Version 5.7+ / 10.2+
-- **PHP-Erweiterungen**:
-  - `openssl` (für Verschlüsselung)
-  - `curl` (für API-Anfragen)
-  - `json` (für Datenverarbeitung)
-  - `mbstring` (für Textverarbeitung)
+- **PHP Extensions**:
+  - `openssl` (for encryption)
+  - `curl` (for API requests)
+  - `json` (for data processing)
+  - `mbstring` (for text processing)
 
 ## 🚀 Installation
 
-### 1. Plugin herunterladen
+1. Create subdirectories, if necessary for `public/Customizing/global/plugins/Services/Repository/RepositoryObject/`
+2. Navigate to `public/Customizing/global/plugins/Services/Repository/RepositoryObject/`
+3. Execute:
 
 ```bash
-cd /pfad/zu/ilias/Customizing/global/plugins/Services/Repository/RepositoryObject/
-git clone https://github.com/robynvasco/ilias-markdown-quiz.git MarkdownQuiz
+git clone https://github.com/robynvasco/ilias-markdown-quiz.git ./MarkdownQuiz
 ```
 
-### 2. Datenbank einrichten
+4. In ILIAS, navigate to **Administration → Plugins**
+5. Find the **MarkdownQuiz** plugin
+6. Click **Update** and then **Activate**
 
-```bash
-cd MarkdownQuiz
-mysql -u [username] -p [database] < sql/dbupdate.php
-```
+### Configure Plugin
 
-Oder verwenden Sie das ILIAS-Administrations-Interface:
-1. Navigieren Sie zu **Administration → Plugins**
-2. Suchen Sie das **MarkdownQuiz** Plugin
-3. Klicken Sie auf **Aktualisieren** und dann **Aktivieren**
+1. Go to **Administration → Plugins → MarkdownQuiz → Configuration**
+2. Select your preferred **AI Service**:
+   - **OpenAI**: Enter API key from [platform.openai.com](https://platform.openai.com)
+   - **Google Gemini**: Enter API key from [ai.google.dev](https://ai.google.dev)
+   - **GWDG**: Obtain credentials from your institution
+3. Save the configuration
 
-### 3. Plugin konfigurieren
+## 📖 Usage
 
-1. Gehen Sie zu **Administration → Plugins → MarkdownQuiz → Konfiguration**
-2. Wählen Sie Ihren bevorzugten **KI-Service**:
-   - **OpenAI**: API-Key von [platform.openai.com](https://platform.openai.com) einfügen
-   - **Google Gemini**: API-Key von [ai.google.dev](https://ai.google.dev) einfügen
-   - **GWDG**: Zugangsdaten von Ihrer Institution erhalten
-3. Speichern Sie die Konfiguration
+### For Instructors/Trainers
 
-## 📖 Verwendung
+#### Create Quiz
 
-### Für Dozenten/Trainer
+1. Navigate to your desired course or repository
+2. Click **Add New Object → MarkdownQuiz**
+3. Enter a **Title** and optionally a **Description**
+4. Click **Create Quiz**
 
-#### Quiz erstellen
+#### Generate Questions
 
-1. Navigieren Sie zu Ihrem gewünschten Kurs oder Magazin
-2. Klicken Sie **Neues Objekt hinzufügen → MarkdownQuiz**
-3. Geben Sie einen **Titel** und optional eine **Beschreibung** ein
-4. Klicken Sie **Quiz erstellen**
+1. Open your MarkdownQuiz object
+2. Upload a file (supported formats: .md, .txt, .pdf, .ppt, .pptx, .docx)
+3. Click **Generate Questions**
+4. Wait while the AI creates the questions (may take 10-30 seconds)
+5. Review the generated questions
 
-#### Fragen generieren
+#### Adjust Settings
 
-1. Öffnen Sie Ihr MarkdownQuiz-Objekt
-2. Laden Sie eine Datei hoch (unterstützte Formate: .md, .txt, .pdf, .ppt, .pptx, .docx)
-3. Klicken Sie **Fragen generieren**
-4. Warten Sie, während die KI die Fragen erstellt (kann 10-30 Sekunden dauern)
-5. Überprüfen Sie die generierten Fragen
+- **Online/Offline**: Control visibility for learners
+  - **Online**: Quiz is visible to all participants
+  - **Offline**: Quiz is only visible to administrators/trainers
+- **Title & Description**: Edit the quiz metadata
 
-#### Einstellungen anpassen
+### For Learners
 
-- **Online/Offline**: Steuern Sie die Sichtbarkeit für Lernende
-  - **Online**: Quiz ist für alle Teilnehmer sichtbar
-  - **Offline**: Quiz ist nur für Administratoren/Trainer sichtbar
-- **Titel & Beschreibung**: Bearbeiten Sie die Metadaten des Quiz
+1. Open the MarkdownQuiz object in the course
+2. Read the question carefully
+3. Select one or more answers (depending on question type)
+4. Receive instant feedback:
+   - ✅ **Green**: Correct answer
+   - ❌ **Red**: Incorrect answer
 
-### Für Lernende
+## 🔒 Security Features
 
-1. Öffnen Sie das MarkdownQuiz-Objekt im Kurs
-2. Lesen Sie die Frage sorgfältig durch
-3. Wählen Sie eine oder mehrere Antworten (je nach Fragetyp)
-4. Erhalten Sie sofortiges Feedback:
-   - ✅ **Grün**: Richtige Antwort
-   - ❌ **Rot**: Falsche Antwort
+The plugin implements multi-layered security measures:
 
-## 🔒 Sicherheitsfeatures
-
-Das Plugin implementiert mehrschichtige Sicherheitsmaßnahmen:
-
-### API-Key-Verschlüsselung
-- **AES-256-GCM**: Militärische Verschlüsselung für gespeicherte API-Keys
-- **Einzigartiger Schlüssel**: Pro ILIAS-Installation individuell generiert
-- **Sichere Speicherung**: Verschlüsselte Keys in `ilias.ini.php`
+### API Key Encryption
+- **AES-256-GCM**: Military-grade encryption for stored API keys
+- **Unique Key**: Individually generated per ILIAS installation
+- **Secure Storage**: Encrypted keys in `ilias.ini.php`
 
 ### Rate Limiting
-- **Session-basiert**: Schutz vor automatisierten Anfragen
-- **Konfigurierbare Limits**: Standard 5 Anfragen pro 60 Sekunden
-- **Benutzerfreundlich**: Klare Fehlermeldungen bei Überschreitung
+- **Session-based**: Protection against automated requests
+- **Configurable Limits**: Default 5 requests per 60 seconds
+- **User-friendly**: Clear error messages when exceeded
 
-### Input-Validierung
-- **XSS-Schutz**: Alle Benutzereingaben werden gefiltert
-- **Type Safety**: Strikte PHP-Typisierung in allen Klassen
-- **SQL-Injection-Schutz**: Verwendung von Prepared Statements
+### Input Validation
+- **XSS Protection**: All user inputs are filtered
+- **Type Safety**: Strict PHP typing in all classes
+- **SQL Injection Protection**: Use of prepared statements
 
-### Antwort-Validierung
-- **HMAC-Signierung**: Manipulationsschutz für Quiz-Antworten
-- **Session-Validierung**: Schutz vor CSRF-Angriffen
+### Answer Validation
+- **HMAC Signing**: Tamper protection for quiz answers
+- **Session Validation**: Protection against CSRF attacks
 
-## 🏗️ Architektur
+## 🏗️ Architecture
 
-Das Plugin folgt dem ILIAS Repository Object Pattern:
+The plugin follows the ILIAS Repository Object Pattern:
 
 ```
 MarkdownQuiz/
 ├── classes/
-│   ├── class.ilObjMarkdownQuiz.php          # Datenmodell
+│   ├── class.ilObjMarkdownQuiz.php          # Data model
 │   ├── class.ilObjMarkdownQuizGUI.php       # UI Controller
-│   ├── class.ilObjMarkdownQuizAccess.php    # Zugriffssteuerung
-│   ├── class.ilObjMarkdownQuizListGUI.php   # Listen-Ansicht
-│   ├── class.ilMarkdownQuizPlugin.php       # Plugin-Einstieg
+│   ├── class.ilObjMarkdownQuizAccess.php    # Access control
+│   ├── class.ilObjMarkdownQuizListGUI.php   # List view
+│   ├── class.ilMarkdownQuizPlugin.php       # Plugin entry point
 │   └── AI/
-│       ├── ilMarkdownQuizAIService.php      # KI-Basis-Service
-│       ├── ilMarkdownQuizOpenAIService.php  # OpenAI-Integration
-│       ├── ilMarkdownQuizGeminiService.php  # Gemini-Integration
-│       └── ilMarkdownQuizGWDGService.php    # GWDG-Integration
-├── lang/                                     # Sprachdateien (de/en)
-├── sql/                                      # Datenbank-Setup
-├── templates/                                # UI-Templates
-├── docs/                                     # Erweiterte Dokumentation
-└── test/                                     # Unit Tests
-
+│       ├── ilMarkdownQuizAIService.php      # AI base service
+│       ├── ilMarkdownQuizOpenAIService.php  # OpenAI integration
+│       ├── ilMarkdownQuizGeminiService.php  # Gemini integration
+│       └── ilMarkdownQuizGWDGService.php    # GWDG integration
+├── lang/                                     # Language files (de/en)
+├── sql/                                      # Database setup
+├── templates/                                # UI templates
+├── docs/                                     # Extended documentation
+└── test/                                     # Unit tests
 ```
 
-Detaillierte Architektur-Dokumentation finden Sie in [CODE_STRUCTURE.md](CODE_STRUCTURE.md).
+Detailed architecture documentation can be found in [CODE_STRUCTURE.md](CODE_STRUCTURE.md).
 
 ## 🧪 Testing
 
 ```bash
-# Unit Tests ausführen
+# Run unit tests
 cd test/
 php run_tests.php
 
-# Spezifische Tests
+# Run specific tests
 php run_tests.php --filter testQuizGeneration
 ```
 
-## 🔧 Konfiguration
+## 🔧 Configuration
 
-### Globale Einstellungen (Administration)
+### Global Settings (Administration)
 
-| Einstellung | Beschreibung | Standard |
-|------------|--------------|----------|
-| **KI-Service** | Welcher Anbieter verwendet werden soll | OpenAI |
-| **API-Key** | Verschlüsselter Zugriffsschlüssel | - |
-| **Modell** | Spezifisches KI-Modell (z.B. gpt-4) | gpt-4 |
-| **Rate Limit** | Max. Anfragen pro Zeitfenster | 5/60s |
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **AI Service** | Which provider to use | OpenAI |
+| **API Key** | Encrypted access key | - |
+| **Model** | Specific AI model (e.g. gpt-4) | gpt-4 |
+| **Rate Limit** | Max requests per time window | 5/60s |
 
-### Objekt-Einstellungen (pro Quiz)
+### Object Settings (per Quiz)
 
-| Einstellung | Beschreibung | Standard |
-|------------|--------------|----------|
-| **Online** | Sichtbarkeit für Lernende | Online |
-| **Titel** | Name des Quiz-Objekts | - |
-| **Beschreibung** | Detaillierte Erklärung | - |
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Online** | Visibility for learners | Online |
+| **Title** | Name of the quiz object | - |
+| **Description** | Detailed explanation | - |
 
 ## 🐛 Troubleshooting
 
 ### "Rate limit exceeded"
-- **Ursache**: Zu viele Anfragen in kurzer Zeit
-- **Lösung**: Warten Sie 60 Sekunden und versuchen Sie es erneut
+- **Cause**: Too many requests in a short time
+- **Solution**: Wait 60 seconds and try again
 
 ### "API key not configured"
-- **Ursache**: Kein gültiger API-Key hinterlegt
-- **Lösung**: Gehen Sie zu Administration → Plugins → MarkdownQuiz → Konfiguration
+- **Cause**: No valid API key configured
+- **Solution**: Go to Administration → Plugins → MarkdownQuiz → Configuration
 
 ### "Failed to generate questions"
-- **Ursache**: KI-Service nicht erreichbar oder Datei zu groß
-- **Lösung**: 
-  - Überprüfen Sie Ihre Internetverbindung
-  - Reduzieren Sie die Dateigröße (empfohlen: < 5 MB)
-  - Versuchen Sie ein anderes Dateiformat
+- **Cause**: AI service unreachable or file too large
+- **Solution**: 
+  - Check your internet connection
+  - Reduce file size (recommended: < 5 MB)
+  - Try a different file format
 
-### Quiz zeigt keine Fragen
-- **Ursache**: Generierung noch nicht abgeschlossen oder fehlgeschlagen
-- **Lösung**: 
-  - Überprüfen Sie die ILIAS-Logs unter `data/logs/`
-  - Regenerieren Sie die Fragen mit "Fragen generieren"
+### Quiz shows no questions
+- **Cause**: Generation not yet completed or failed
+- **Solution**: 
+  - Check ILIAS logs under `data/logs/`
+  - Regenerate questions with "Generate Questions"
 
-## 📄 Lizenz
+## 📄 License
 
-Dieses Plugin ist unter der **GNU General Public License v3.0** lizenziert.
+This plugin is licensed under the **GNU General Public License v3.0**.
 
-Siehe [LICENSE](LICENSE) für Details.
+See [LICENSE](LICENSE) for details.
 
-## 👤 Autor
+## 👤 Author
 
 **Robyn Vasco**
 - GitHub: [@robynvasco](https://github.com/robynvasco)
 
-
 ## 📝 Changelog
 
-### Version 1.0.0 (Januar 2026)
-- ✨ Initiales Release
-- ✨ Multi-Format-Unterstützung (MD, TXT, PDF, PPT, DOCX)
-- ✨ Drei KI-Provider (OpenAI, Gemini, GWDG)
-- ✨ Online/Offline-Verwaltung
-- ✨ Umfassende Sicherheitsfeatures
-- ✨ Mehrsprachige Unterstützung (DE/EN)
+### Version 1.0.0 (January 2026)
+- ✨ Initial release
+- ✨ Multi-format support (MD, TXT, PDF, PPT, DOCX)
+- ✨ Three AI providers (OpenAI, Gemini, GWDG)
+- ✨ Online/Offline management
+- ✨ Comprehensive security features
+- ✨ Multilingual support (DE/EN)
 
+## 🔮 Roadmap
+
+- [ ] Export/Import of quiz questions
+- [ ] Advanced question types (free text, matching)
+- [ ] Quiz statistics and analytics
+- [ ] Question pool and reusability
+- [ ] Integration with ILIAS Test & Assessment
+- [ ] Support for additional AI providers
 
 ## 📞 Support
 
-Bei Fragen oder Problemen:
-1. Überprüfen Sie die [CODE_STRUCTURE.md](CODE_STRUCTURE.md) Dokumentation
-2. Durchsuchen Sie die [Issues](https://github.com/robynvasco/ilias-markdown-quiz/issues)
-3. Erstellen Sie ein neues Issue mit detaillierter Beschreibung
+For questions or issues:
+1. Check the [CODE_STRUCTURE.md](CODE_STRUCTURE.md) documentation
+2. Search the [Issues](https://github.com/robynvasco/ilias-markdown-quiz/issues)
+3. Create a new issue with detailed description
 
 ---
+
+**Made with ❤️ for the ILIAS Community**
 
