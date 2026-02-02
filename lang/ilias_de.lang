@@ -4,6 +4,13 @@ obj_xmdq_duplicate#:#Markdown Quiz kopieren
 obj_xmdq_select#:#Markdown Quiz auswählen
 xmdq_add#:#Markdown Quiz hinzufügen
 xmdq_new#:#Neues Markdown Quiz
+rep_robj_xmdq_pl#:#Markdown Quizzes
+rep_robj_xmdq_add#:#Quiz erstellen
+crs_create_xmdq#:#Quiz erstellen
+grp_create_xmdq#:#Quiz erstellen
+fold_create_xmdq#:#Quiz erstellen
+root_create_xmdq#:#Quiz erstellen
+cat_create_xmdq#:#Quiz erstellen
 
 config_general#:#Allgemeine Einstellungen
 config_ai_settings#:#KI-Einstellungen

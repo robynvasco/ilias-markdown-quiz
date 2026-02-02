@@ -4,6 +4,13 @@ obj_xmdq_duplicate#:#Copy Markdown Quiz
 obj_xmdq_select#:#Select Markdown Quiz
 xmdq_add#:#Add Markdown Quiz
 xmdq_new#:#New Markdown Quiz
+rep_robj_xmdq_pl#:#Markdown Quizzes
+rep_robj_xmdq_add#:#Create Quiz
+crs_create_xmdq#:#Create Quiz
+grp_create_xmdq#:#Create Quiz
+fold_create_xmdq#:#Create Quiz
+root_create_xmdq#:#Create Quiz
+cat_create_xmdq#:#Create Quiz
 
 config_general#:#General Settings
 config_ai_settings#:#AI Settings
