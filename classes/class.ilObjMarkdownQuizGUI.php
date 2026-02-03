@@ -169,18 +169,18 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         // Check if quiz is empty
         if (empty($raw_content) || trim($raw_content) === '') {
             // Show friendly message for empty quiz
-            $html_output = "
-                <div class='alert alert-info'>
-                    <h4>No Quiz Content Yet</h4>
-                    <p>This quiz doesn't have any content yet.</p>";
+            $html_output = $this->getModernStyles() . "
+                <div class='quiz-empty-state'>
+                    <h3>Kein Quiz-Inhalt vorhanden</h3>
+                    <p>Dieses Quiz hat noch keinen Inhalt.</p>";
             
             if ($this->checkPermissionBool("write")) {
                 $html_output .= "
-                    <p>
-                        <strong>Get started:</strong><br>
-                        • Go to <strong>AI Generate</strong> to create questions automatically<br>
-                        • Or go to <strong>Settings</strong> to write questions manually in markdown format
-                    </p>";
+                    <div class='quiz-hint'>
+                        <strong>Erste Schritte:</strong><br>
+                        • Nutze <strong>KI-Generator</strong> für automatische Fragenerstellung<br>
+                        • Oder erstelle Fragen manuell in den <strong>Einstellungen</strong>
+                    </div>";
             }
             
             $html_output .= "</div>";
@@ -188,26 +188,22 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             // SECURITY: Protect content before rendering
             try {
                 $protected_content = ilMarkdownQuizXSSProtection::protectContent($raw_content);
-                $html_output = $this->renderQuiz($protected_content);
+                $html_output = $this->getModernStyles() . $this->renderQuiz($protected_content);
             } catch (\Exception $e) {
                 // Show validation error (e.g., malformed markdown)
-                $html_output = "<div class='alert alert-warning'>" . 
-                              "<strong>Invalid Quiz Format:</strong> " .
+                $html_output = $this->getModernStyles() . 
+                              "<div class='quiz-error'>" . 
+                              "<strong>Ungültiges Quiz-Format:</strong> " .
                               ilMarkdownQuizXSSProtection::escapeHTML($e->getMessage()) . 
                               "</div>";
                 
                 if ($this->checkPermissionBool("write")) {
-                    $html_output .= "<p>Please go to <strong>Settings</strong> to fix the quiz content.</p>";
+                    $html_output .= "<p>Bitte gehe zu <strong>Einstellungen</strong>, um den Quiz-Inhalt zu korrigieren.</p>";
                 }
             }
         }
-        
-        $panel = $this->factory->panel()->standard(
-            $this->object->getTitle(),
-            $this->factory->legacy($html_output)
-        );
 
-        $this->tpl->setContent($this->renderer->render($panel));
+        $this->tpl->setContent($html_output);
     }
 
     /**
@@ -1082,7 +1078,10 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
     private function renderQuiz(string $markdown_content): string
     {
         $lines = explode("\n", $markdown_content);
-        $html = "<div id='quiz-wrapper' style='padding: 20px;'>";
+        $html = "<div class='quiz-wrapper'>";
+        $html .= "<div class='quiz-header'>";
+        $html .= "<h2>" . ilMarkdownQuizXSSProtection::escapeHTML($this->object->getTitle()) . "</h2>";
+        $html .= "</div>";
 
         $question_num = 0;
         $in_question = false;
@@ -1100,11 +1099,12 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                 }
                 
                 $question_num++;
-                $html .= "<div class='question' style='margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;'>";
+                $html .= "<div class='quiz-question-card'>";
                 // SECURITY: Escape question text
-                $html .= "<h4 style='margin: 0 0 15px 0; color: #333;'>" . 
-                         ilMarkdownQuizXSSProtection::escapeHTML($line) . "</h4>";
-                $html .= "<div class='options' style='margin-left: 10px;'>";
+                $html .= "<div class='quiz-question-number'>Frage " . $question_num . "</div>";
+                $html .= "<h3 class='quiz-question-text'>" . 
+                         ilMarkdownQuizXSSProtection::escapeHTML($line) . "</h3>";
+                $html .= "<div class='quiz-options'>";
                 $in_question = true;
             } elseif (str_starts_with($line, '-')) {
                 if ($in_question) {
@@ -1115,10 +1115,9 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
                     $correct_attr = $is_correct ? "data-correct='true'" : "data-correct='false'";
                     $safe_name = ilMarkdownQuizXSSProtection::createSafeDataAttribute("q_{$question_num}");
                     
-                    $html .= "<label style='display: block; margin: 8px 0; padding: 5px; cursor: pointer; border-radius: 3px;'>";
-                    $html .= "<input type='radio' name='{$safe_name}' {$correct_attr} style='margin-right: 8px;'>";
-                    // SECURITY: Escape answer text
-                    $html .= ilMarkdownQuizXSSProtection::escapeHTML($answer_text);
+                    $html .= "<label class='quiz-option'>";
+                    $html .= "<input type='radio' name='{$safe_name}' {$correct_attr}>";
+                    $html .= "<span class='quiz-option-text'>" . ilMarkdownQuizXSSProtection::escapeHTML($answer_text) . "</span>";
                     $html .= "</label>";
                 }
             }
@@ -1129,10 +1128,11 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
             $html .= "</div></div>";
         }
 
-        $html .= "<div style='margin-top: 20px;'>";
-        $html .= "<button type='button' class='btn btn-primary' onclick='checkQuiz()' style='margin-right: 10px;'>Check Answers</button>";
-        $html .= "<button type='button' class='btn btn-secondary' onclick='resetQuiz()'>Reset</button>";
+        $html .= "<div class='quiz-actions'>";
+        $html .= "<button type='button' class='quiz-btn quiz-btn-primary' onclick='checkQuiz()'>Antworten prüfen</button>";
+        $html .= "<button type='button' class='quiz-btn quiz-btn-secondary' onclick='resetQuiz()'>Zurücksetzen</button>";
         $html .= "</div>";
+        $html .= "<div id='quiz-result' class='quiz-result' style='display:none;'></div>";
         $html .= $this->getCheckQuizScript();
         $html .= "</div>";
 
@@ -1144,52 +1144,387 @@ class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
         return <<<'JS'
 <script>
 function checkQuiz() {
-    const questions = document.querySelectorAll('.question');
+    const questions = document.querySelectorAll('.quiz-question-card');
     let correct = 0;
     let total = 0;
+    let unanswered = 0;
 
     questions.forEach(question => {
         const radios = question.querySelectorAll('input[type="radio"]');
+        const options = question.querySelectorAll('.quiz-option');
         total++;
 
+        let hasAnswer = false;
         let question_correct = false;
+        
         radios.forEach(radio => {
-            if (radio.checked && radio.getAttribute('data-correct') === 'true') {
-                question_correct = true;
+            if (radio.checked) {
+                hasAnswer = true;
+                if (radio.getAttribute('data-correct') === 'true') {
+                    question_correct = true;
+                }
             }
-            radio.parentElement.style.backgroundColor = 'transparent';
+        });
+
+        if (!hasAnswer) {
+            unanswered++;
+        }
+
+        // Reset all options
+        options.forEach(opt => {
+            opt.classList.remove('quiz-option-correct', 'quiz-option-wrong');
         });
 
         if (question_correct) {
             correct++;
-            radios.forEach(radio => {
+            radios.forEach((radio, idx) => {
                 if (radio.getAttribute('data-correct') === 'true') {
-                    radio.parentElement.style.backgroundColor = '#dff0d8';
+                    options[idx].classList.add('quiz-option-correct');
                 }
             });
-        } else {
-            radios.forEach(radio => {
+        } else if (hasAnswer) {
+            radios.forEach((radio, idx) => {
                 if (radio.getAttribute('data-correct') === 'true') {
-                    radio.parentElement.style.backgroundColor = '#dff0d8';
+                    options[idx].classList.add('quiz-option-correct');
                 } else if (radio.checked) {
-                    radio.parentElement.style.backgroundColor = '#f2dede';
+                    options[idx].classList.add('quiz-option-wrong');
                 }
             });
         }
     });
 
+    // Show result
     const percentage = total > 0 ? Math.round(correct / total * 100) : 0;
-    alert('Score: ' + correct + '/' + total + ' (' + percentage + '%)');
+    const resultDiv = document.getElementById('quiz-result');
+    
+    let resultClass = 'quiz-result-good';
+    let resultText = 'Ausgezeichnet!';
+    
+    if (percentage < 50) {
+        resultClass = 'quiz-result-poor';
+        resultText = 'Weiter üben!';
+    } else if (percentage < 80) {
+        resultClass = 'quiz-result-ok';
+        resultText = 'Gut gemacht!';
+    }
+    
+    resultDiv.className = 'quiz-result ' + resultClass;
+    resultDiv.innerHTML = '<div class="quiz-result-content">' +
+        '<div class="quiz-result-title">' + resultText + '</div>' +
+        '<div class="quiz-result-score">' + correct + ' von ' + total + ' richtig (' + percentage + '%)</div>' +
+        (unanswered > 0 ? '<div class="quiz-result-hint">(' + unanswered + ' Frage(n) nicht beantwortet)</div>' : '') +
+        '</div>';
+    resultDiv.style.display = 'block';
+    
+    // Scroll to result
+    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function resetQuiz() {
     const radios = document.querySelectorAll('input[type="radio"]');
+    const options = document.querySelectorAll('.quiz-option');
+    const resultDiv = document.getElementById('quiz-result');
+    
     radios.forEach(radio => {
         radio.checked = false;
-        radio.parentElement.style.backgroundColor = 'transparent';
     });
+    
+    options.forEach(opt => {
+        opt.classList.remove('quiz-option-correct', 'quiz-option-wrong');
+    });
+    
+    resultDiv.style.display = 'none';
 }
 </script>
 JS;
+    }
+
+    private function getModernStyles(): string
+    {
+        return <<<'CSS'
+<style>
+    /* Quiz Wrapper */
+    .quiz-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 32px 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    
+    /* Quiz Header */
+    .quiz-header {
+        margin-bottom: 32px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e5e9f0;
+    }
+    
+    .quiz-header h2 {
+        font-size: 28px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    /* Question Cards */
+    .quiz-question-card {
+        background: white;
+        border: 1px solid #e5e9f0;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        transition: box-shadow 0.2s ease;
+    }
+    
+    .quiz-question-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    
+    .quiz-question-number {
+        display: inline-block;
+        background: linear-gradient(135deg, #5a7894 0%, #7b93b0 100%);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    
+    .quiz-question-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 12px 0 20px 0;
+        line-height: 1.5;
+    }
+    
+    /* Options */
+    .quiz-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .quiz-option {
+        display: flex;
+        align-items: center;
+        padding: 14px 18px;
+        background: #f8fafb;
+        border: 1px solid #e5e9f0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .quiz-option:hover {
+        background: #f0f4f8;
+        border-color: #c8d3de;
+    }
+    
+    .quiz-option input[type="radio"] {
+        margin: 0 12px 0 0;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #5a7894;
+    }
+    
+    .quiz-option-text {
+        flex: 1;
+        color: #2c3e50;
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    
+    /* Correct/Wrong States */
+    .quiz-option-correct {
+        background: #eef8f0;
+        border-color: #7ab88a;
+        border-width: 2px;
+    }
+    
+    .quiz-option-wrong {
+        background: #fef3f2;
+        border-color: #e89a94;
+        border-width: 2px;
+    }
+    
+    /* Action Buttons */
+    .quiz-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #e5e9f0;
+    }
+    
+    .quiz-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    
+    .quiz-btn-primary {
+        background: linear-gradient(135deg, #5a9e6f 0%, #7ab88a 100%);
+        color: white;
+    }
+    
+    .quiz-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(90, 158, 111, 0.25);
+    }
+    
+    .quiz-btn-secondary {
+        background: #f0f4f8;
+        color: #5a7894;
+    }
+    
+    .quiz-btn-secondary:hover {
+        background: #e5ebf1;
+    }
+    
+    /* Result Display */
+    .quiz-result {
+        margin-top: 24px;
+        padding: 24px;
+        border-radius: 12px;
+        text-align: center;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .quiz-result-good {
+        background: linear-gradient(135deg, rgba(90, 158, 111, 0.1) 0%, rgba(122, 184, 138, 0.1) 100%);
+        border: 1px solid rgba(90, 158, 111, 0.3);
+    }
+    
+    .quiz-result-ok {
+        background: linear-gradient(135deg, rgba(90, 120, 148, 0.1) 0%, rgba(123, 147, 176, 0.1) 100%);
+        border: 1px solid rgba(90, 120, 148, 0.3);
+    }
+    
+    .quiz-result-poor {
+        background: linear-gradient(135deg, rgba(232, 154, 148, 0.1) 0%, rgba(245, 178, 173, 0.1) 100%);
+        border: 1px solid rgba(232, 154, 148, 0.3);
+    }
+    
+    .quiz-result-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .quiz-result-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    
+    .quiz-result-score {
+        font-size: 16px;
+        font-weight: 600;
+        color: #5a7894;
+    }
+    
+    .quiz-result-hint {
+        font-size: 14px;
+        color: #7f8ea3;
+        font-style: italic;
+    }
+    
+    /* Empty State */
+    .quiz-empty-state {
+        text-align: center;
+        padding: 60px 24px;
+        background: #f8fafb;
+        border: 1px solid #e5e9f0;
+        border-radius: 12px;
+    }
+    
+    .quiz-empty-state h3 {
+        font-size: 22px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0 0 12px 0;
+    }
+    
+    .quiz-empty-state p {
+        font-size: 15px;
+        color: #7f8ea3;
+        margin: 0 0 24px 0;
+    }
+    
+    .quiz-hint {
+        display: inline-block;
+        text-align: left;
+        background: white;
+        border: 1px solid #e5e9f0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        color: #5a7894;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    
+    /* Error State */
+    .quiz-error {
+        background: #fef3f2;
+        border: 1px solid #e89a94;
+        border-radius: 12px;
+        padding: 20px 24px;
+        color: #d84a3f;
+        margin: 24px 0;
+    }
+    
+    .quiz-error strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .quiz-wrapper {
+            padding: 20px 16px;
+        }
+        
+        .quiz-question-card {
+            padding: 20px;
+        }
+        
+        .quiz-header h2 {
+            font-size: 24px;
+        }
+        
+        .quiz-question-text {
+            font-size: 16px;
+        }
+        
+        .quiz-actions {
+            flex-direction: column;
+        }
+        
+        .quiz-btn {
+            width: 100%;
+        }
+    }
+</style>
+CSS;
     }
 }
