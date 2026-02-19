@@ -37,6 +37,17 @@ class ilMarkdownQuizDatabase
     ];
 
     /**
+     * Whitelist der erlaubten Spaltennamen für SQL-Injection-Schutz
+     */
+    const ALLOWED_COLUMNS = [
+        // xmdq_config table
+        'name', 'value',
+        // rep_robj_xmdq_data table
+        'id', 'is_online', 'md_content', 'last_prompt', 'last_difficulty',
+        'last_question_count', 'last_context', 'last_file_ref_id'
+    ];
+
+    /**
      * ILIAS Datenbank-Interface
      * Wird über den Dependency Injection Container injiziert
      */
@@ -78,10 +89,13 @@ class ilMarkdownQuizDatabase
             throw new ilMarkdownQuizException("Invalid table name: " . $table);
         }
 
+        // Validate column names
+        $this->validateColumnNames(array_keys($data));
+
         try {
             // Baue INSERT-Query: INSERT INTO tabelle (spalte1, spalte2) VALUES (wert1, wert2)
             $this->db->query("INSERT INTO " . $table . " (" . implode(", ", array_keys($data)) . ") VALUES (" . implode(", ", array_map(function ($value) {
-                    return $this->db->quote($value); // Automatisches Escaping für SQL-Injection-Schutz
+                    return $this->db->quote($value, 'text'); // Automatisches Escaping für SQL-Injection-Schutz
                 }, array_values($data))) . ")");
         } catch (Exception $e) {
             throw new ilMarkdownQuizException($e->getMessage());
@@ -115,15 +129,18 @@ class ilMarkdownQuizDatabase
             throw new ilMarkdownQuizException("Invalid table name: " . $table);
         }
 
+        // Validate column names
+        $this->validateColumnNames(array_keys($data));
+
         try {
             // INSERT ... ON DUPLICATE KEY UPDATE: Fügt ein oder aktualisiert bei Konflikt
             $this->db->query("INSERT INTO " . $table . " (" . implode(", ", array_keys($data)) . ") VALUES (" . implode(", ", array_map(function ($value) {
-                    return $this->db->quote($value);
+                    return $this->db->quote($value, 'text');
                 }, array_values($data))) . ") ON DUPLICATE KEY UPDATE " . implode(", ", array_map(function ($key, $value) {
                     // Bei Duplikat: Setze jede Spalte auf den neuen Wert
                     return $key . " = " . $value;
                 }, array_keys($data), array_map(function ($value) {
-                    return $this->db->quote($value);
+                    return $this->db->quote($value, 'text');
                 }, array_values($data)))));
         } catch (Exception $e) {
             throw new ilMarkdownQuizException($e->getMessage());
@@ -157,16 +174,20 @@ class ilMarkdownQuizDatabase
             throw new ilMarkdownQuizException("Invalid table name: " . $table);
         }
 
+        // Validate column names
+        $this->validateColumnNames(array_keys($data));
+        $this->validateColumnNames(array_keys($where));
+
         try {
             // UPDATE tabelle SET spalte1 = wert1, spalte2 = wert2 WHERE bedingung
             $this->db->query("UPDATE " . $table . " SET " . implode(", ", array_map(function ($key, $value) {
                     return $key . " = " . $value; // SET-Teil: spalte = wert
                 }, array_keys($data), array_map(function ($value) {
-                    return $this->db->quote($value);
+                    return $this->db->quote($value, 'text');
                 }, array_values($data)))) . " WHERE " . implode(" AND ", array_map(function ($key, $value) {
                     return $key . " = " . $value; // WHERE-Teil: spalte = wert AND ...
                 }, array_keys($where), array_map(function ($value) {
-                    return $this->db->quote($value);
+                    return $this->db->quote($value, 'text');
                 }, array_values($where)))));
         } catch (Exception $e) {
             throw new ilMarkdownQuizException($e->getMessage());
@@ -196,12 +217,15 @@ class ilMarkdownQuizDatabase
             throw new ilMarkdownQuizException("Invalid table name: " . $table);
         }
 
+        // Validate column names
+        $this->validateColumnNames(array_keys($where));
+
         try {
             // DELETE FROM tabelle WHERE bedingung AND bedingung
             $this->db->query("DELETE FROM " . $table . " WHERE " . implode(" AND ", array_map(function ($key, $value) {
                     return $key . " = " . $value;
                 }, array_keys($where), array_map(function ($value) {
-                    return $this->db->quote($value);
+                    return $this->db->quote($value, 'text');
                 }, array_values($where)))));
         } catch (Exception $e) {
             throw new ilMarkdownQuizException($e->getMessage());
@@ -239,6 +263,16 @@ class ilMarkdownQuizDatabase
             throw new ilMarkdownQuizException("Invalid table name: " . $table);
         }
 
+        // Validate column names if specified
+        if (isset($columns)) {
+            $this->validateColumnNames($columns);
+        }
+
+        // Validate WHERE clause column names
+        if (isset($where)) {
+            $this->validateColumnNames(array_keys($where));
+        }
+
         try {
             // Baue SELECT-Query: SELECT spalten FROM tabelle
             $query = "SELECT " . (isset($columns) ? implode(", ", $columns) : "*") . " FROM " . $table;
@@ -248,15 +282,14 @@ class ilMarkdownQuizDatabase
                 $query .= " WHERE " . implode(" AND ", array_map(function ($key, $value) {
                         return $key . " = " . $value;
                     }, array_keys($where), array_map(function ($value) {
-                        return $this->db->quote($value);
+                        return $this->db->quote($value, 'text');
                     }, array_values($where))));
             }
 
-            // Füge zusätzliche SQL-Klauseln hinzu (ORDER BY, LIMIT etc.)
-            // strip_tags() als minimaler Schutz vor HTML/Script-Injection
-            if (is_string($extra)) {
-                $extra = strip_tags($extra);
-                $query .= " " . $extra;
+            // SECURITY: $extra parameter removed to prevent SQL injection
+            // If you need ORDER BY or LIMIT, add dedicated parameters instead
+            if (!empty($extra)) {
+                throw new ilMarkdownQuizException("Extra SQL parameter is deprecated for security reasons");
             }
 
             // Führe Query aus
@@ -301,16 +334,47 @@ class ilMarkdownQuizDatabase
 
     /**
      * Validiert Tabellennamen gegen Whitelist
-     * 
+     *
      * Sicherheitsmechanismus: Nur Tabellen aus ALLOWED_TABLES dürfen verwendet werden.
      * Verhindert SQL-Injection über dynamische Tabellennamen.
-     * 
+     *
      * @param string $identifier Zu prüfender Tabellenname
      * @return bool True wenn erlaubt, sonst false
      */
     private function validateTableName(string $identifier): bool
     {
         return in_array($identifier, self::ALLOWED_TABLES, true);
+    }
+
+    /**
+     * Validiert Spaltennamen gegen Whitelist
+     *
+     * Sicherheitsmechanismus: Nur Spalten aus ALLOWED_COLUMNS dürfen verwendet werden.
+     * Verhindert SQL-Injection über dynamische Spaltennamen.
+     *
+     * @param string $column Zu prüfender Spaltenname
+     * @return bool True wenn erlaubt, sonst false
+     */
+    private function validateColumnName(string $column): bool
+    {
+        return in_array($column, self::ALLOWED_COLUMNS, true);
+    }
+
+    /**
+     * Validiert Array von Spaltennamen
+     *
+     * @param array $columns Array von Spaltennamen
+     * @return bool True wenn alle erlaubt, sonst false
+     * @throws ilMarkdownQuizException Bei ungültigem Spaltennamen
+     */
+    private function validateColumnNames(array $columns): bool
+    {
+        foreach ($columns as $column) {
+            if (!$this->validateColumnName($column)) {
+                throw new ilMarkdownQuizException("Invalid column name: " . $column);
+            }
+        }
+        return true;
     }
 }
 

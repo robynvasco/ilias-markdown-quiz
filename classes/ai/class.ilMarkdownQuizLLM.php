@@ -93,5 +93,18 @@ abstract class ilMarkdownQuizLLM
      * ```
      */
     abstract protected function buildPrompt(string $user_prompt, string $difficulty, int $question_count): string;
+
+    /**
+     * Get LaTeX formatting instructions for the AI
+     *
+     * Hardcoded here (not in config) because ILIAS template engine
+     * strips curly braces {} from config textarea values.
+     */
+    protected function getLatexInstructions(): string
+    {
+        return "\n\nFor math/formulas, use LaTeX in dollar signs (e.g. " .
+            '$\frac{a}{b}$, $\sqrt{x}$, $\alpha$' .
+            "). Use LaTeX commands instead of Unicode symbols for math.\n";
+    }
 }
 

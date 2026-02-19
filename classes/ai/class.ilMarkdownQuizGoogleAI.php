@@ -73,7 +73,7 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
             
             // Build full prompt
             $prompt = $this->buildPrompt($user_prompt, $difficulty, $question_count);
-            
+
             // Call Google API
             $response = $this->callAPI($prompt);
             
@@ -109,40 +109,25 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
         // Load system prompt from config
         ilMarkdownQuizConfig::load();
         $system_prompt = ilMarkdownQuizConfig::get('system_prompt');
-        
-        // DEBUG logging for development
-        $debug_file = '/tmp/mdquiz_prompt_debug.log';
-        file_put_contents($debug_file, "=== PROMPT DEBUG ===\n", FILE_APPEND);
-        file_put_contents($debug_file, "Time: " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
-        file_put_contents($debug_file, "system_prompt from config (first 200 chars): " . substr($system_prompt, 0, 200) . "\n", FILE_APPEND);
-        file_put_contents($debug_file, "question_count: " . $question_count . "\n", FILE_APPEND);
-        file_put_contents($debug_file, "difficulty: " . $difficulty . "\n", FILE_APPEND);
-        
+
         // Fallback if no system prompt configured
         if (empty($system_prompt)) {
             $system_prompt = "Generate exactly [QUESTION_COUNT] quiz questions with difficulty level: [DIFFICULTY]";
         }
-        
+
         // Convert legacy placeholder formats
         $system_prompt = str_replace('{{question_count}}', '[QUESTION_COUNT]', $system_prompt);
         $system_prompt = str_replace('{{difficulty}}', '[DIFFICULTY]', $system_prompt);
         $system_prompt = str_replace('{question_count}', '[QUESTION_COUNT]', $system_prompt);
         $system_prompt = str_replace('{difficulty}', '[DIFFICULTY]', $system_prompt);
-        
+
         // Replace placeholders with actual values
         $system_prompt = str_replace('[DIFFICULTY]', $difficulty, $system_prompt);
         $system_prompt = str_replace('[QUESTION_COUNT]', (string)$question_count, $system_prompt);
-        
-        // DEBUG: After replacement
-        file_put_contents($debug_file, "system_prompt after replacement (first 300 chars): " . substr($system_prompt, 0, 300) . "\n", FILE_APPEND);
-        
-        // Combine system prompt with user input
-        $final_prompt = $system_prompt . "\n\n" . $user_prompt;
-        
-        // DEBUG: Final prompt
-        file_put_contents($debug_file, "final_prompt sent to API (first 500 chars): " . substr($final_prompt, 0, 500) . "\n", FILE_APPEND);
-        file_put_contents($debug_file, "===================\n\n", FILE_APPEND);
-        
+
+        // Combine system prompt + LaTeX instructions + user input
+        $final_prompt = $system_prompt . $this->getLatexInstructions() . "\n\n" . $user_prompt;
+
         return $final_prompt;
     }
 

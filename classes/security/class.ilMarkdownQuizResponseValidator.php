@@ -21,44 +21,49 @@ namespace security;
 class ilMarkdownQuizResponseValidator
 {
     /**
-     * Validate OpenAI response structure
-     * 
+     * Validate OpenAI Responses API structure
+     *
      * Checks:
-     * - choices[0].message.content exists and is non-empty string
+     * - output array exists with message items
+     * - output[].content[].text exists and is non-empty
      * - No suspicious patterns (scripts, SQL, javascript:)
-     * 
+     *
+     * Response format:
+     * { "output": [{ "type": "message", "content": [{ "type": "output_text", "text": "..." }] }] }
+     *
      * @param array $response Decoded JSON response
      * @throws \Exception If invalid structure or security violation
      */
     public static function validateOpenAIResponse(array $response): void
     {
         // Check required top-level fields
-        if (!isset($response['choices']) || !is_array($response['choices'])) {
-            throw new \Exception('Invalid OpenAI response: missing or invalid "choices" field');
+        if (!isset($response['output']) || !is_array($response['output'])) {
+            throw new \Exception('Invalid OpenAI response: missing or invalid "output" field');
         }
-        
-        if (empty($response['choices'])) {
-            throw new \Exception('Invalid OpenAI response: empty "choices" array');
+
+        if (empty($response['output'])) {
+            throw new \Exception('Invalid OpenAI response: empty "output" array');
         }
-        
-        // Validate first choice
-        $choice = $response['choices'][0];
-        
-        if (!isset($choice['message']) || !is_array($choice['message'])) {
-            throw new \Exception('Invalid OpenAI response: missing or invalid "message" field');
+
+        // Extract text from output items
+        $text = '';
+        foreach ($response['output'] as $item) {
+            if (($item['type'] ?? '') === 'message' && isset($item['content']) && is_array($item['content'])) {
+                foreach ($item['content'] as $part) {
+                    if (($part['type'] ?? '') === 'output_text' && isset($part['text'])) {
+                        $text .= $part['text'];
+                    }
+                }
+            }
         }
-        
-        if (!isset($choice['message']['content']) || !is_string($choice['message']['content'])) {
-            throw new \Exception('Invalid OpenAI response: missing or invalid "content" field');
-        }
-        
+
         // Validate content is not empty
-        if (trim($choice['message']['content']) === '') {
+        if (trim($text) === '') {
             throw new \Exception('Invalid OpenAI response: empty content');
         }
-        
+
         // Check for suspicious patterns that might indicate injection
-        self::validateContentSafety($choice['message']['content']);
+        self::validateContentSafety($text);
     }
     
     /**
@@ -111,13 +116,40 @@ class ilMarkdownQuizResponseValidator
     }
     
     /**
-     * Validate GWDG API response structure
-     * @throws \Exception if response is invalid
+     * Validate GWDG API response structure (OpenAI Chat Completions compatible)
+     *
+     * Checks:
+     * - choices[0].message.content exists and is non-empty string
+     * - No suspicious patterns (scripts, SQL, javascript:)
+     *
+     * @param array $response Decoded JSON response
+     * @throws \Exception If invalid structure or security violation
      */
     public static function validateGWDGResponse(array $response): void
     {
-        // GWDG uses OpenAI-compatible API
-        self::validateOpenAIResponse($response);
+        if (!isset($response['choices']) || !is_array($response['choices'])) {
+            throw new \Exception('Invalid GWDG response: missing or invalid "choices" field');
+        }
+
+        if (empty($response['choices'])) {
+            throw new \Exception('Invalid GWDG response: empty "choices" array');
+        }
+
+        $choice = $response['choices'][0];
+
+        if (!isset($choice['message']) || !is_array($choice['message'])) {
+            throw new \Exception('Invalid GWDG response: missing or invalid "message" field');
+        }
+
+        if (!isset($choice['message']['content']) || !is_string($choice['message']['content'])) {
+            throw new \Exception('Invalid GWDG response: missing or invalid "content" field');
+        }
+
+        if (trim($choice['message']['content']) === '') {
+            throw new \Exception('Invalid GWDG response: empty content');
+        }
+
+        self::validateContentSafety($choice['message']['content']);
     }
     
     /**
@@ -163,12 +195,12 @@ class ilMarkdownQuizResponseValidator
     
     /**
      * Validate markdown quiz format
-     * 
+     *
      * Requirements:
      * - Questions end with '?'
      * - Each question has exactly 4 options (- [x] or - [ ])
-     * - Exactly 1 correct answer per question
-     * 
+     * - At least 1 correct answer per question (supports single & multiple choice)
+     *
      * @param string $markdown Quiz content
      * @return array Parsed questions with validation
      * @throws \Exception If format invalid (with detailed error messages)
@@ -179,10 +211,10 @@ class ilMarkdownQuizResponseValidator
         $questions = [];
         $currentQuestion = null;
         $errors = [];
-        
+
         foreach ($lines as $lineNum => $line) {
             $line = trim($line);
-            
+
             // Skip empty lines
             if ($line === '') {
                 if ($currentQuestion !== null && count($currentQuestion['options']) >= 4) {
@@ -191,14 +223,14 @@ class ilMarkdownQuizResponseValidator
                 }
                 continue;
             }
-            
+
             // Check if it's an option line
             if (preg_match('/^-\s*\[([ x])\]\s*(.+)$/i', $line, $matches)) {
                 if ($currentQuestion === null) {
                     $errors[] = "Line " . ($lineNum + 1) . ": Option found without question";
                     continue;
                 }
-                
+
                 $currentQuestion['options'][] = [
                     'checked' => strtolower($matches[1]) === 'x',
                     'text' => trim($matches[2])
@@ -208,50 +240,50 @@ class ilMarkdownQuizResponseValidator
                 if (!str_ends_with($line, '?')) {
                     $errors[] = "Line " . ($lineNum + 1) . ": Question must end with '?'";
                 }
-                
+
                 // Save previous question if exists
                 if ($currentQuestion !== null && count($currentQuestion['options']) >= 4) {
                     $questions[] = $currentQuestion;
                 }
-                
+
                 $currentQuestion = [
                     'question' => $line,
                     'options' => []
                 ];
             }
         }
-        
+
         // Save last question
         if ($currentQuestion !== null && count($currentQuestion['options']) >= 4) {
             $questions[] = $currentQuestion;
         }
-        
+
         // Validate each question
         foreach ($questions as $idx => $question) {
             $questionNum = $idx + 1;
-            
+
             // Check has exactly 4 options
             if (count($question['options']) !== 4) {
                 $errors[] = "Question {$questionNum}: Must have exactly 4 options (found " . count($question['options']) . ")";
             }
-            
-            // Check exactly one correct answer
+
+            // Check at least one correct answer (supports both single and multiple choice)
             $correctCount = 0;
             foreach ($question['options'] as $option) {
                 if ($option['checked']) {
                     $correctCount++;
                 }
             }
-            
-            if ($correctCount !== 1) {
-                $errors[] = "Question {$questionNum}: Must have exactly 1 correct answer (found {$correctCount})";
+
+            if ($correctCount < 1) {
+                $errors[] = "Question {$questionNum}: Must have at least 1 correct answer (found 0)";
             }
         }
-        
+
         if (!empty($errors)) {
             throw new \Exception("Quiz validation failed:\n" . implode("\n", $errors));
         }
-        
+
         return $questions;
     }
 }

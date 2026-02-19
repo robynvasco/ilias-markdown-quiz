@@ -60,7 +60,7 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         if (!$DIC->database()->tableExists('xmdq_config')) {
             // If table doesn't exist, show a message and return early
             $this->tpl = $DIC->ui()->mainTemplate();
-            $this->tpl->setOnScreenMessage('info', 'Plugin configuration is not available until the plugin is activated.');
+            $this->tpl->setOnScreenMessage('info', $this->getPluginObject()->txt('config_not_available'));
             $this->tpl->setContent('');
             return;
         }
@@ -103,25 +103,25 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     {
         $this->tabs->addTab(
             "general",
-            $this->plugin_object->txt("config_general"),
+            $this->getPluginObject()->txt("config_general"),
             $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureGeneral")
         );
 
         $this->tabs->addTab(
             "gwdg",
-            "GWDG",
+            $this->getPluginObject()->txt("config_tab_gwdg"),
             $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureGWDG")
         );
 
         $this->tabs->addTab(
             "google",
-            "Google Gemini",
+            $this->getPluginObject()->txt("config_tab_google"),
             $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureGoogle")
         );
 
         $this->tabs->addTab(
             "openai",
-            "OpenAI ChatGPT",
+            $this->getPluginObject()->txt("config_tab_openai"),
             $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureOpenAI")
         );
 
@@ -193,8 +193,8 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         $ai_enabled_bool = filter_var($ai_enabled_value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
         
         $ai_enabled = $this->factory->input()->field()->checkbox(
-            $this->plugin_object->txt("config_ai_enabled_label"),
-            $this->plugin_object->txt("config_ai_enabled_info")
+            $this->getPluginObject()->txt("config_ai_enabled_label"),
+            $this->getPluginObject()->txt("config_ai_enabled_info")
         )->withValue($ai_enabled_bool)->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 ilMarkdownQuizConfig::set('ai_enabled', $v);
@@ -211,8 +211,8 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         }
 
         $gwdg_service = $this->factory->input()->field()->checkbox(
-            "GWDG",
-        )->withValue((isset($available_services["gwdg"]) && $available_services["gwdg"] == "1") ? true : false)->withAdditionalTransformation($this->refinery->custom()->transformation(
+            $this->getPluginObject()->txt('config_gwdg_label'),
+        )->withValue((isset($available_services["gwdg"]) && $available_services["gwdg"] === true) ? true : false)->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 // Reload config to avoid stale/null reference
                 $services = ilMarkdownQuizConfig::get('available_services');
@@ -225,8 +225,8 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ));
 
         $google_service = $this->factory->input()->field()->checkbox(
-            "Google Gemini",
-        )->withValue((isset($available_services["google"]) && $available_services["google"] == "1") ? true : false)->withAdditionalTransformation($this->refinery->custom()->transformation(
+            $this->getPluginObject()->txt('config_google_label'),
+        )->withValue((isset($available_services["google"]) && $available_services["google"] === true) ? true : false)->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 // Reload config to avoid stale/null reference
                 $services = ilMarkdownQuizConfig::get('available_services');
@@ -239,8 +239,8 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ));
 
         $openai_service = $this->factory->input()->field()->checkbox(
-            "OpenAI ChatGPT",
-        )->withValue((isset($available_services["openai"]) && $available_services["openai"] == "1") ? true : false)->withAdditionalTransformation($this->refinery->custom()->transformation(
+            $this->getPluginObject()->txt('config_openai_label'),
+        )->withValue((isset($available_services["openai"]) && $available_services["openai"] === true) ? true : false)->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 // Reload config to avoid stale/null reference
                 $services = ilMarkdownQuizConfig::get('available_services');
@@ -253,98 +253,76 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         ));
 
         $system_prompt = $this->factory->input()->field()->textarea(
-            $this->plugin_object->txt("config_system_prompt_label"),
-            $this->plugin_object->txt("config_system_prompt_info")
+            $this->getPluginObject()->txt("config_system_prompt_label"),
+            $this->getPluginObject()->txt("config_system_prompt_info")
         )->withValue(ilMarkdownQuizConfig::get("system_prompt") ?: $this->getDefaultSystemPrompt())->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
+                // Empty field resets to default prompt
+                if (empty(trim($v))) {
+                    $v = $this->getDefaultSystemPrompt();
+                }
                 ilMarkdownQuizConfig::set('system_prompt', $v);
             }
-        ))->withRequired(true);
+        ));
 
         return [
             "ai_settings" => $this->factory->input()->field()->section([
                 $ai_enabled
-            ], $this->plugin_object->txt("config_ai_settings")),
+            ], $this->getPluginObject()->txt("config_ai_settings")),
             "available_services" => $this->factory->input()->field()->section([
                 $gwdg_service,
                 $google_service,
                 $openai_service
-            ], $this->plugin_object->txt("config_available_services")),
+            ], $this->getPluginObject()->txt("config_available_services")),
             "general" => $this->factory->input()->field()->section([
                 $system_prompt
-            ], $this->plugin_object->txt("config_general"))
+            ], $this->getPluginObject()->txt("config_general"))
         ];
     }
 
     /**
      * Build GWDG Academic Cloud settings section.
-     * 
+     *
      * Contains:
-     * - Model multiselect (fetched dynamically from GWDG API if key is set)
+     * - Model select (top 3 open-source models)
      * - API key password field (auto-encrypted on save)
-     * - Streaming checkbox (enable/disable response streaming)
-     * 
-     * Models are loaded via getGWDGModels() when API key is already configured.
-     * 
+     *
      * @return array Form section with GWDG configuration inputs
-     * @throws ilMarkdownQuizException
      */
     private function buildGWDGSection(): array {
         $inputs = [];
 
-        if (!empty(ilMarkdownQuizConfig::get("gwdg_api_key"))) {
-            $models = $this->getGWDGModels(ilMarkdownQuizConfig::get("gwdg_api_key"));
+        $models = [
+            'meta-llama/Llama-3.3-70B-Instruct' => $this->getPluginObject()->txt('config_model_gwdg_llama'),
+            'Qwen/Qwen3-235B-A22B-Thinking-2507' => $this->getPluginObject()->txt('config_model_gwdg_qwen'),
+            'mistralai/Mistral-Large-Instruct-2501' => $this->getPluginObject()->txt('config_model_gwdg_mistral'),
+        ];
 
-            $values = ilMarkdownQuizConfig::get("gwdg_models");
-
-            if (empty($values)) {
-                $values = [];
-            } else {
-                $values = array_keys($values);
+        $inputs[] = $this->factory->input()->field()->select(
+            $this->getPluginObject()->txt("config_gwdg_model_label"),
+            $models
+        )->withValue(ilMarkdownQuizConfig::get("gwdg_model") ?: 'meta-llama/Llama-3.3-70B-Instruct')->withAdditionalTransformation($this->refinery->custom()->transformation(
+            function ($v) {
+                ilMarkdownQuizConfig::set('gwdg_model', $v);
             }
-
-            if (!empty($models)) {
-                $inputs[] = $this->factory->input()->field()->multiSelect(
-                    $this->plugin_object->txt("config_gwdg_models_label"),
-                    $models
-                )->withValue($values)->withAdditionalTransformation($this->refinery->custom()->transformation(
-                    function ($v) use ($models) {
-                        $models_to_save = [];
-
-                        foreach ($v as $model) {
-                            $models_to_save[$model] = $models[$model];
-                        }
-
-                        ilMarkdownQuizConfig::set('gwdg_models', $models_to_save);
-                    }
-                ))->withRequired(true);
-            } else {
-                $this->tpl->setOnScreenMessage("failure", $this->plugin_object->txt("config_gwdg_models_error"));
-            }
-        }
+        ))->withRequired(true);
 
         $inputs[] = $this->factory->input()->field()->password(
-            $this->plugin_object->txt("config_gwdg_key_label"),
-            $this->plugin_object->txt("config_gwdg_key_info")
+            $this->getPluginObject()->txt("config_gwdg_key_label"),
+            $this->getPluginObject()->txt("config_gwdg_key_info")
         )->withValue(ilMarkdownQuizConfig::get("gwdg_api_key"))->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 // Convert Password object to string
                 $api_key = ($v instanceof \ILIAS\Data\Password) ? $v->toString() : $v;
-                ilMarkdownQuizConfig::set('gwdg_api_key', $api_key);
+                // Validate API key is not empty
+                if (!empty($api_key)) {
+                    ilMarkdownQuizConfig::set('gwdg_api_key', $api_key);
+                }
             }
         ))->withRequired(true);
 
-        $inputs[] = $this->factory->input()->field()->checkbox(
-            $this->plugin_object->txt("config_gwdg_stream_label"),
-            $this->plugin_object->txt("config_gwdg_stream_info")
-        )->withValue(ilMarkdownQuizConfig::get("gwdg_streaming") == "1")->withAdditionalTransformation($this->refinery->custom()->transformation(
-            function ($v) {
-                ilMarkdownQuizConfig::set('gwdg_streaming', $v);
-            }
-        ));
-
         return [
-            "gwdg" => $this->factory->input()->field()->section($inputs, "GWDG")
+            "gwdg" => $this->factory->input()->field()->section($inputs, $this->getPluginObject()->txt('config_gwdg_label'))
         ];
     }
 
@@ -361,18 +339,21 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         $inputs = [];
 
         $inputs[] = $this->factory->input()->field()->password(
-            $this->plugin_object->txt("config_google_key_label"),
-            $this->plugin_object->txt("config_google_key_info")
+            $this->getPluginObject()->txt("config_google_key_label"),
+            $this->getPluginObject()->txt("config_google_key_info")
         )->withValue(ilMarkdownQuizConfig::get("google_api_key"))->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 // Convert Password object to string
                 $api_key = ($v instanceof \ILIAS\Data\Password) ? $v->toString() : $v;
-                ilMarkdownQuizConfig::set('google_api_key', $api_key);
+                // Validate API key is not empty
+                if (!empty($api_key)) {
+                    ilMarkdownQuizConfig::set('google_api_key', $api_key);
+                }
             }
         ))->withRequired(true);
 
         return [
-            "google" => $this->factory->input()->field()->section($inputs, "Google Gemini")
+            "google" => $this->factory->input()->field()->section($inputs, $this->getPluginObject()->txt('config_google_label'))
         ];
     }
 
@@ -389,35 +370,35 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
         $inputs = [];
 
         $models = [
-            'gpt-4o' => 'GPT-4o',
-            'gpt-4o-mini' => 'GPT-4o Mini',
-            'gpt-4-turbo' => 'GPT-4 Turbo',
-            'gpt-4' => 'GPT-4',
-            'gpt-3.5-turbo' => 'GPT-3.5 Turbo'
+            'gpt-5.2' => $this->getPluginObject()->txt('config_model_gpt52'),
+            'gpt-5-mini' => $this->getPluginObject()->txt('config_model_gpt5_mini'),
         ];
 
         $inputs[] = $this->factory->input()->field()->select(
-            $this->plugin_object->txt("config_openai_model_label"),
+            $this->getPluginObject()->txt("config_openai_model_label"),
             $models
-        )->withValue(ilMarkdownQuizConfig::get("openai_model") ?: 'gpt-4o-mini')->withAdditionalTransformation($this->refinery->custom()->transformation(
+        )->withValue(ilMarkdownQuizConfig::get("openai_model") ?: 'gpt-5-mini')->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 ilMarkdownQuizConfig::set('openai_model', $v);
             }
         ))->withRequired(true);
 
         $inputs[] = $this->factory->input()->field()->password(
-            $this->plugin_object->txt("config_openai_key_label"),
-            $this->plugin_object->txt("config_openai_key_info")
+            $this->getPluginObject()->txt("config_openai_key_label"),
+            $this->getPluginObject()->txt("config_openai_key_info")
         )->withValue(ilMarkdownQuizConfig::get("openai_api_key"))->withAdditionalTransformation($this->refinery->custom()->transformation(
             function ($v) {
                 // Convert Password object to string
                 $api_key = ($v instanceof \ILIAS\Data\Password) ? $v->toString() : $v;
-                ilMarkdownQuizConfig::set('openai_api_key', $api_key);
+                // Validate API key is not empty
+                if (!empty($api_key)) {
+                    ilMarkdownQuizConfig::set('openai_api_key', $api_key);
+                }
             }
         ))->withRequired(true);
 
         return [
-            "openai" => $this->factory->input()->field()->section($inputs, "OpenAI ChatGPT")
+            "openai" => $this->factory->input()->field()->section($inputs, $this->getPluginObject()->txt('config_openai_label'))
         ];
     }
 
@@ -462,55 +443,7 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     {
         ilMarkdownQuizConfig::save();
 
-        $this->tpl->setOnScreenMessage("success", $this->plugin_object->txt('config_msg_success'));
-    }
-
-    /**
-     * Fetch available models from GWDG Academic Cloud API.
-     * 
-     * Makes GET request to https://chat-ai.academiccloud.de/v1/models
-     * with Bearer token authentication. Respects ILIAS proxy settings.
-     * 
-     * Timeout: 10 seconds
-     * 
-     * @param string $api_key GWDG API key for authentication
-     * @return array Associative array of model_id => model_name
-     */
-    private function getGWDGModels(string $api_key): array
-    {
-        $curlSession = curl_init();
-        curl_setopt($curlSession, CURLOPT_URL, "https://chat-ai.academiccloud.de/v1/models");
-        curl_setopt($curlSession, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curlSession, CURLOPT_TIMEOUT, 10);
-        curl_setopt($curlSession, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $api_key
-        ]);
-
-        if (\ilProxySettings::_getInstance()->isActive()) {
-            $proxyHost = \ilProxySettings::_getInstance()->getHost();
-            $proxyPort = \ilProxySettings::_getInstance()->getPort();
-            $proxyURL = $proxyHost . ":" . $proxyPort;
-            curl_setopt($curlSession, CURLOPT_PROXY, $proxyURL);
-        }
-
-        $response = curl_exec($curlSession);
-
-        $models = [];
-
-        if (!curl_errno($curlSession)) {
-            $response = json_decode($response, true);
-
-            if (isset($response["data"])) {
-                foreach ($response["data"] as $model) {
-                    $models[$model['id']] = $model['name'];
-                }
-            }
-        }
-
-        curl_close($curlSession);
-
-        return $models;
+        $this->tpl->setOnScreenMessage("success", $this->getPluginObject()->txt('config_msg_success'));
     }
 
     /**
@@ -533,19 +466,24 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     private function getDefaultSystemPrompt(): string
     {
         // Use [PLACEHOLDER] format to avoid ILIAS template processing
-        return "You are a quiz generation expert. Generate EXACTLY [QUESTION_COUNT] single-choice quiz questions in strict markdown format.\n\n" .
+        return "You are a quiz generation expert. Generate EXACTLY [QUESTION_COUNT] quiz questions in strict markdown format.\n\n" .
             "CRITICAL RULES:\n" .
             "1. Generate EXACTLY [QUESTION_COUNT] questions - NO MORE, NO LESS\n" .
-            "2. Each question MUST end with a question mark (?)\n" .
-            "3. Each question MUST have EXACTLY 4 answer options\n" .
-            "4. EXACTLY ONE answer must be marked as correct with [x]\n" .
-            "5. All other answers must be marked with [ ]\n" .
-            "6. Use this exact format for each question:\n\n" .
-            "Question text here?\n" .
-            "- [x] Correct answer\n" .
-            "- [ ] Wrong answer 1\n" .
-            "- [ ] Wrong answer 2\n" .
-            "- [ ] Wrong answer 3\n\n" .
+            "2. Each question MUST have EXACTLY 4 answer options\n" .
+            "3. For SINGLE-CHOICE questions: EXACTLY ONE answer marked with [x], all others with [ ]\n" .
+            "4. For MULTIPLE-CHOICE questions: TWO or MORE answers marked with [x], the rest with [ ]\n\n" .
+            "FORMAT - Single-choice example:\n" .
+            "What is the capital of France?\n" .
+            "- [x] Paris\n" .
+            "- [ ] London\n" .
+            "- [ ] Berlin\n" .
+            "- [ ] Madrid\n\n" .
+            "FORMAT - Multiple-choice example:\n" .
+            "Which are programming languages?\n" .
+            "- [x] Python\n" .
+            "- [x] Java\n" .
+            "- [ ] HTML\n" .
+            "- [ ] Photoshop\n\n" .
             "QUALITY GUIDELINES:\n" .
             "- Make wrong answers plausible but clearly incorrect\n" .
             "- Avoid \"all of the above\" or \"none of the above\" options\n" .

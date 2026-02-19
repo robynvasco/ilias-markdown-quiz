@@ -27,7 +27,7 @@ class ilMarkdownQuizXSSProtection
 {
     // Allowed markdown patterns
     private const ALLOWED_MARKDOWN_PATTERNS = [
-        'questions' => '/^.+\?$/m',  // Lines ending with ?
+        'questions' => '/^.{3,}[\.?!:]$/m',  // Lines ending with punctuation (min 3 chars)
         'options' => '/^- \[(x| )\] .+$/m',  // Checkbox options
         'text' => '/^[a-zA-Z0-9\s\.\,\?\!\-\:\;\(\)\/\'\"\äöüÄÖÜß]+$/u',  // Safe characters
     ];
@@ -66,10 +66,10 @@ class ilMarkdownQuizXSSProtection
         
         $csp_directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // ILIAS requires inline scripts
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",  // ILIAS requires inline scripts, MathJax CDN
             "style-src 'self' 'unsafe-inline'",  // Allow inline styles
             "img-src 'self' data: https:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://cdn.jsdelivr.net",  // MathJax loads web fonts
             "connect-src 'self'",
             "frame-ancestors 'self'",
             "base-uri 'self'",
@@ -176,11 +176,19 @@ class ilMarkdownQuizXSSProtection
         }
         
         if (!$has_questions) {
-            throw new ilMarkdownQuizException("Content must contain at least one question");
+            throw new ilMarkdownQuizException(
+                "Invalid quiz format: Questions must end with punctuation (?, !, :, or .)\n" .
+                "Example: What is the capital of France?\n" .
+                "Or: The Earth revolves around the Sun."
+            );
         }
-        
+
         if (!$has_options) {
-            throw new ilMarkdownQuizException("Content must contain answer options");
+            throw new ilMarkdownQuizException(
+                "Invalid quiz format: Each question needs answer options.\n" .
+                "Format: - [ ] Wrong answer\n" .
+                "        - [x] Correct answer"
+            );
         }
         
         return true;
@@ -230,6 +238,10 @@ class ilMarkdownQuizXSSProtection
     
     /**
      * Sanitize user input (prompts, context, etc.)
+     *
+     * Note: Prompt injection protection relies on architectural security (see below),
+     * not regex pattern matching which is easily bypassed and language-specific.
+     *
      * @param string $input User input
      * @param int $max_length Maximum allowed length
      * @return string Sanitized input
@@ -243,16 +255,19 @@ class ilMarkdownQuizXSSProtection
                 "Input too long (max {$max_length} characters)"
             );
         }
-        
+
         // Remove null bytes
         $input = str_replace("\0", '', $input);
-        
+
+        // Remove control characters (except newlines and tabs)
+        $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $input);
+
         // Normalize whitespace
         $input = preg_replace('/\s+/', ' ', $input);
-        
+
         // Trim
         $input = trim($input);
-        
+
         return $input;
     }
     

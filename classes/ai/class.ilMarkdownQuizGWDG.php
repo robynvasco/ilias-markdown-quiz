@@ -74,7 +74,7 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
             
             // Build final prompt
             $prompt = $this->buildPrompt($user_prompt, $difficulty, $question_count);
-            
+
             // Call GWDG API
             $response = $this->callAPI($prompt);
             
@@ -125,9 +125,9 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
         $system_prompt = str_replace('[DIFFICULTY]', $difficulty, $system_prompt);
         $system_prompt = str_replace('[QUESTION_COUNT]', (string)$question_count, $system_prompt);
         
-        // Combine system prompt with user input
-        $final_prompt = $system_prompt . "\n\n" . $user_prompt;
-        
+        // Combine system prompt + LaTeX instructions + user input
+        $final_prompt = $system_prompt . $this->getLatexInstructions() . "\n\n" . $user_prompt;
+
         return $final_prompt;
     }
 
@@ -161,7 +161,7 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
                 ]
             ],
             "temperature" => 0.7,      // Creativity: 0.0=deterministic, 1.0=very creative
-            "max_tokens" => 2000       // Max response length (~1500 words)
+            "max_completion_tokens" => 2000  // Max response length (~1500 words)
         ];
 
         // Initialize CURL
