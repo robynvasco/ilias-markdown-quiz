@@ -63,7 +63,7 @@ ai_desc_question_count#:#How many questions should be generated
 ai_label_context#:#Additional Context (Optional)
 ai_desc_context#:#Add content from a PDF or other text to provide context for quiz generation.
 ai_label_file#:#ILIAS File (Optional)
-ai_desc_file#:#Select a file from this course/folder to use its content as context.
+ai_desc_file#:#Supported formats: Word, PowerPoint, PDF, TeX and learning modules. Select a file from this course/folder to use its content as context.
 ai_label_file_ref#:#ILIAS File Reference (Optional)
 ai_desc_file_ref#:#Enter the ref_id of an ILIAS file object to use its content as context.
 ai_error_difficulty#:#Invalid difficulty level

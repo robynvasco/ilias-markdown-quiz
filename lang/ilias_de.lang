@@ -63,7 +63,7 @@ ai_desc_question_count#:#Wie viele Fragen sollen generiert werden
 ai_label_context#:#Zusätzlicher Kontext (Optional)
 ai_desc_context#:#Fügen Sie Inhalte aus einem PDF oder anderem Text hinzu, um Kontext für die Quiz-Generierung bereitzustellen.
 ai_label_file#:#ILIAS-Datei (Optional)
-ai_desc_file#:#Wählen Sie eine Datei aus diesem Kurs/Ordner aus, um deren Inhalt als Kontext zu verwenden.
+ai_desc_file#:#Unterstützte Formate: Word, PowerPoint, PDF, TeX und Lernmodule. Wählen Sie eine Datei aus diesem Kurs/Ordner aus, um deren Inhalt als Kontext zu verwenden.
 ai_label_file_ref#:#ILIAS-Dateireferenz (Optional)
 ai_desc_file_ref#:#Geben Sie die ref_id eines ILIAS-Dateiobjekts ein, um dessen Inhalt als Kontext zu verwenden.
 ai_error_difficulty#:#Ungültiger Schwierigkeitsgrad

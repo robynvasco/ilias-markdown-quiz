@@ -1067,7 +1067,7 @@ CSS;
         $files = [];
         
         // Supported file extensions
-        $supported_extensions = ['txt', 'pdf', 'doc', 'docx', 'ppt', 'pptx'];
+        $supported_extensions = ['txt', 'tex', 'pdf', 'doc', 'docx', 'ppt', 'pptx'];
         
         try {
             // Get parent ref_id
@@ -1183,7 +1183,7 @@ CSS;
             
             // Try to extract text based on file type
             
-            if ($suffix === 'txt') {
+            if ($suffix === 'txt' || $suffix === 'tex') {
                 return $content;
             } elseif ($suffix === 'pdf') {
                 return $this->extractTextFromPDF($content);
@@ -1194,7 +1194,7 @@ CSS;
             } else {
                 // Unsupported file type
                 throw new \Exception(
-                    "Unsupported file type: {$suffix}. Supported types: txt, pdf, doc, docx, ppt, pptx"
+                    "Unsupported file type: {$suffix}. Supported types: txt, tex, pdf, doc, docx, ppt, pptx"
                 );
             }
             
@@ -2121,6 +2121,17 @@ MathJax.Hub.Config({
         displayMath: [['$$','$$'], ['\\[','\\]']],
         processEscapes: true
     },
+    jax: ["input/TeX", "output/SVG"],
+    SVG: {
+        font: "STIX-Web",
+        matchFontHeight: true,
+        styles: {
+            ".MathJax_SVG svg > g, .MathJax_SVG_Display svg > g": {
+                fill: "currentColor",
+                stroke: "currentColor"
+            }
+        }
+    },
     messageStyle: "none"
 });
 MathJax.Hub.Queue(function(){
@@ -2128,7 +2139,7 @@ MathJax.Hub.Queue(function(){
     for(var i=0;i<els.length;i++) els[i].style.visibility='visible';
 });
 </script>
-<script async src="https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML,Safe"></script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js?config=TeX-AMS-MML_SVG,Safe"></script>
 HTML;
     }
 
