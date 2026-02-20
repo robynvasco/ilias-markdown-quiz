@@ -71,7 +71,7 @@ ai_error_question_count#:#Question count must be between 1 and 20
 ai_error_no_content#:#AI returned no content
 ai_btn_generate#:#Generate Quiz
 ai_loading#:#Generating quiz...
-ai_loading_hint#:#This may take up to 60 seconds.
+ai_loading_hint#:#This may take up to 3 minutes.
 ai_success#:#Quiz successfully generated and added!
 ai_error_prefix#:#Error:
 

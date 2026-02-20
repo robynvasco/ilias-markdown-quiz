@@ -71,7 +71,7 @@ ai_error_question_count#:#Fragenanzahl muss zwischen 1 und 20 liegen
 ai_error_no_content#:#KI hat keinen Inhalt zurückgegeben
 ai_btn_generate#:#Quiz generieren
 ai_loading#:#Quiz wird generiert...
-ai_loading_hint#:#Dies kann bis zu 60 Sekunden dauern.
+ai_loading_hint#:#Dies kann bis zu 3 Minuten dauern.
 ai_success#:#Quiz erfolgreich generiert und hinzugefügt!
 ai_error_prefix#:#Fehler:
 

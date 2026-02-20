@@ -104,8 +104,7 @@ class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
                     "role" => "user",
                     "content" => $prompt
                 ]
-            ],
-            "max_output_tokens" => 2000
+            ]
         ];
 
         $metadata = ilMarkdownQuizRequestSigner::createRequestMetadata('openai');
@@ -128,7 +127,7 @@ class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
                 "X-Request-Signature: " . $signature,
                 "X-Request-ID: " . $metadata['request_id']
             ],
-            CURLOPT_TIMEOUT => 60,
+            CURLOPT_TIMEOUT => 180,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2
         ]);

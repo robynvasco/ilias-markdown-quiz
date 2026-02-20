@@ -161,7 +161,7 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
                 ]
             ],
             "temperature" => 0.7,      // Creativity: 0.0=deterministic, 1.0=very creative
-            "max_completion_tokens" => 2000  // Max response length (~1500 words)
+            "max_completion_tokens" => 16384  // High limit needed: reasoning models use output tokens for thinking
         ];
 
         // Initialize CURL
@@ -179,7 +179,7 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
                 "Content-Type: application/json",
                 "Authorization: Bearer " . $this->api_key  // Bearer token auth
             ],
-            CURLOPT_TIMEOUT => 30
+            CURLOPT_TIMEOUT => 180
         ]);
 
         // Execute request

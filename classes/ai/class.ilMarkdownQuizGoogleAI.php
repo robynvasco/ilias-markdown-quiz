@@ -164,7 +164,7 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
             ],
             "generationConfig" => [
                 "temperature" => 0.7,      // Creativity: 0.0=deterministic, 1.0=very creative
-                "maxOutputTokens" => 2000  // Max response length (~1500 words)
+                "maxOutputTokens" => 16384  // High limit needed: reasoning models use output tokens for thinking
             ]
         ];
 
@@ -182,7 +182,7 @@ class ilMarkdownQuizGoogleAI extends ilMarkdownQuizLLM
             CURLOPT_HTTPHEADER => [
                 "Content-Type: application/json"
             ],
-            CURLOPT_TIMEOUT => 30
+            CURLOPT_TIMEOUT => 180
         ]);
 
         // Execute request
