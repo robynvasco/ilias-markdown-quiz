@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="http://www.ilias.de/Module" version="1.0">
+    <id>xmdq</id>
+    <type>xmdq</type>
+    <class_prefix>ilMarkdownQuiz</class_prefix>
+</module>

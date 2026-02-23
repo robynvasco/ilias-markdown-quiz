@@ -1,0 +1,123 @@
+obj_xmdq#:#Markdown Quiz
+objs_xmdq#:#Markdown Quizzes
+obj_xmdq_duplicate#:#Markdown Quiz kopieren
+obj_xmdq_select#:#Markdown Quiz auswählen
+xmdq_add#:#Markdown Quiz hinzufügen
+xmdq_new#:#Neues Markdown Quiz
+pl#:#Markdown Quizzes
+add#:#Quiz erstellen
+crs_create_xmdq#:#Quiz erstellen
+grp_create_xmdq#:#Quiz erstellen
+fold_create_xmdq#:#Quiz erstellen
+root_create_xmdq#:#Quiz erstellen
+cat_create_xmdq#:#Quiz erstellen
+
+tab_view#:#Quiz
+tab_settings#:#Einstellungen
+tab_edit_questions#:#Fragen bearbeiten
+tab_ai_generate#:#KI-Generierung
+list_cmd_settings#:#Einstellungen
+list_property_status#:#Status
+list_status_offline#:#Offline
+
+view_no_content_title#:#Kein Quiz-Inhalt verfügbar
+view_no_content_text#:#Dieses Quiz hat noch keinen Inhalt.
+view_invalid_format#:#Ungültiges Quiz-Format:
+view_fix_content#:#Bitte gehen Sie zu <strong>Einstellungen</strong>, um den Quiz-Inhalt zu korrigieren.
+
+settings_title#:#Einstellungen
+settings_saved#:#Einstellungen gespeichert
+form_quiz_title#:#Quiz-Titel
+form_online_label#:#Online
+form_online_desc#:#Quiz für Benutzer verfügbar machen
+
+edit_title#:#Fragen bearbeiten
+edit_questions_count#:#Fragen
+edit_btn_add_question#:#+ Frage hinzufügen
+edit_sample_single#:#Single Choice
+edit_sample_multiple#:#Multiple Choice
+edit_btn_save#:#Speichern
+edit_btn_preview#:#Vorschau
+edit_btn_editor#:#Editor
+edit_saved#:#Fragen gespeichert
+edit_error_prefix#:#Speicherfehler:
+edit_sample_added#:#Beispielfrage hinzugefügt
+
+sample_single_question#:#Ihr Fragentext?
+sample_answer_wrong#:#Falsche Antwort
+sample_answer_right#:#Richtige Antwort
+sample_multiple_question#:#Ihr Fragentext? (Mehrere Antworten möglich)
+
+ai_label_model#:#KI-Modell
+ai_desc_model#:#Wählen Sie das KI-Modell für die Quiz-Generierung
+ai_config_incomplete#:#Die KI-Konfiguration ist unvollständig. Bitte kontaktieren Sie einen Administrator, um die API-Einstellungen zu konfigurieren.
+ai_title#:#KI-Generator
+ai_subtitle#:#Quizze automatisch erstellen
+ai_label_prompt#:#Eingabeaufforderung
+ai_desc_prompt#:#Schreiben Sie Ihre eigene Eingabeaufforderung für die KI.
+ai_label_question_type#:#Fragentyp
+ai_option_type_single#:#Single Choice – Eine richtige Antwort pro Frage
+ai_option_type_multiple#:#Multiple Choice – Mehrere richtige Antworten pro Frage
+ai_option_type_mixed#:#Gemischt – Single und Multiple Choice gemischt
+ai_label_difficulty#:#Schwierigkeitsgrad
+ai_option_easy#:#Einfach – Grundlegende Wissensfragen
+ai_option_medium#:#Mittel – Fortgeschrittenes Verständnis
+ai_option_hard#:#Schwer – Komplexe Konzepte
+ai_option_mixed#:#Gemischt – Verschiedene Schwierigkeitsgrade
+ai_label_question_count#:#Anzahl der Fragen
+ai_desc_question_count#:#Wie viele Fragen sollen generiert werden
+ai_label_context#:#Zusätzlicher Kontext (Optional)
+ai_desc_context#:#Fügen Sie Inhalte aus einem PDF oder anderem Text hinzu, um Kontext für die Quiz-Generierung bereitzustellen.
+ai_label_file#:#ILIAS-Datei (Optional)
+ai_desc_file#:#Unterstützte Formate: Word, PowerPoint, PDF, TeX und Lernmodule. Wählen Sie eine Datei aus diesem Kurs/Ordner aus, um deren Inhalt als Kontext zu verwenden.
+ai_label_file_ref#:#ILIAS-Dateireferenz (Optional)
+ai_desc_file_ref#:#Geben Sie die ref_id eines ILIAS-Dateiobjekts ein, um dessen Inhalt als Kontext zu verwenden.
+ai_error_difficulty#:#Ungültiger Schwierigkeitsgrad
+ai_error_question_count#:#Fragenanzahl muss zwischen 1 und 10 liegen
+ai_error_no_content#:#KI hat keinen Inhalt zurückgegeben
+ai_btn_generate#:#Quiz generieren
+ai_loading#:#Quiz wird generiert...
+ai_loading_hint#:#Dies kann bis zu 3 Minuten dauern.
+ai_success#:#Quiz erfolgreich generiert und hinzugefügt!
+ai_error_prefix#:#Fehler:
+
+quiz_question_prefix#:#Frage
+quiz_btn_check#:#Antworten überprüfen
+quiz_btn_reset#:#Zurücksetzen
+quiz_result_excellent#:#Ausgezeichnet!
+quiz_result_practice#:#Weiter üben!
+quiz_result_good#:#Gut gemacht!
+quiz_result_unanswered#:#unbeantwortete Frage(n)
+
+config_general#:#Allgemeine Einstellungen
+config_ai_settings#:#KI-Einstellungen
+config_ai_enabled_label#:#KI-Funktionen aktivieren
+config_ai_enabled_info#:#Aktivieren Sie diese Option, um KI-gestützte Quiz-Generierung zu ermöglichen. Wenn deaktiviert, können Quizze nur manuell erstellt werden.
+config_available_services#:#Verfügbare Dienste
+config_not_available#:#Die Plugin-Konfiguration ist erst verfügbar, wenn das Plugin aktiviert ist.
+config_gwdg_label#:#GWDG (Academic Cloud)
+config_google_label#:#Google Gemini API
+config_openai_label#:#OpenAI ChatGPT
+config_system_prompt_label#:#Systemaufforderung
+config_system_prompt_info#:#Die Systemaufforderung für die KI-Quizgenerierung. Verwenden Sie {topic} für das Thema und {question_count} für die Anzahl der Fragen.
+config_gwdg_key_label#:#GWDG API-Schlüssel
+config_gwdg_key_info#:#Geben Sie Ihren GWDG API-Schlüssel ein
+config_gwdg_model_label#:#GWDG Modell
+config_model_gwdg_llama#:#Llama 3.3 70B – Schnell und zuverlässig
+config_model_gwdg_qwen#:#Qwen 3 235B Thinking – Bestes Reasoning
+config_model_gwdg_mistral#:#Mistral Large 3 675B – Leistungsstärkstes Modell
+config_model_google_gemini#:#Gemini 2.5 Flash
+config_enabled_models_info#:#Für Nutzer zur Auswahl freigeben
+config_google_key_label#:#Google Gemini API-Schlüssel
+config_google_key_info#:#Geben Sie Ihren Google Gemini API-Schlüssel ein
+config_openai_model_label#:#OpenAI-Modell
+config_openai_key_label#:#OpenAI API-Schlüssel
+config_openai_key_info#:#Geben Sie Ihren OpenAI API-Schlüssel ein von https://platform.openai.com/api-keys
+config_model_gpt52#:#GPT-5.2 – Bestes Modell für komplexe Quizze
+config_model_gpt5_mini#:#GPT-5 Mini – Gute Balance aus Qualität und Geschwindigkeit
+config_model_gpt5_nano#:#GPT-5 Nano – Schnellstes Modell für einfache Quizze
+config_model_o4_mini#:#o4-mini – Schnelles Reasoning-Modell
+config_msg_success#:#Konfiguration erfolgreich gespeichert
+config_tab_gwdg#:#GWDG
+config_tab_google#:#Google Gemini
+config_tab_openai#:#OpenAI ChatGPT

@@ -1,0 +1,123 @@
+obj_xmdq#:#Markdown Quiz
+objs_xmdq#:#Markdown Quizzes
+obj_xmdq_duplicate#:#Copy Markdown Quiz
+obj_xmdq_select#:#Select Markdown Quiz
+xmdq_add#:#Add Markdown Quiz
+xmdq_new#:#New Markdown Quiz
+pl#:#Markdown Quizzes
+add#:#Create Quiz
+crs_create_xmdq#:#Create Quiz
+grp_create_xmdq#:#Create Quiz
+fold_create_xmdq#:#Create Quiz
+root_create_xmdq#:#Create Quiz
+cat_create_xmdq#:#Create Quiz
+
+tab_view#:#Quiz
+tab_settings#:#Settings
+tab_edit_questions#:#Edit Questions
+tab_ai_generate#:#AI Generate
+list_cmd_settings#:#Settings
+list_property_status#:#Status
+list_status_offline#:#Offline
+
+view_no_content_title#:#No Quiz Content Available
+view_no_content_text#:#This quiz doesn't have any content yet.
+view_invalid_format#:#Invalid Quiz Format:
+view_fix_content#:#Please go to <strong>Settings</strong> to correct the quiz content.
+
+settings_title#:#Settings
+settings_saved#:#Settings saved
+form_quiz_title#:#Quiz Title
+form_online_label#:#Online
+form_online_desc#:#Make quiz available to users
+
+edit_title#:#Edit Questions
+edit_questions_count#:#Questions
+edit_btn_add_question#:#+ Add Question
+edit_sample_single#:#Single Choice
+edit_sample_multiple#:#Multiple Choice
+edit_btn_save#:#Save
+edit_btn_preview#:#Preview
+edit_btn_editor#:#Editor
+edit_saved#:#Questions saved
+edit_error_prefix#:#Save error:
+edit_sample_added#:#Sample question added
+
+sample_single_question#:#Your question text?
+sample_answer_wrong#:#Wrong answer
+sample_answer_right#:#Right answer
+sample_multiple_question#:#Your question text? (Multiple answers possible)
+
+ai_label_model#:#AI Model
+ai_desc_model#:#Select which AI model to use for quiz generation
+ai_config_incomplete#:#AI configuration is incomplete. Please contact an administrator to configure the API settings.
+ai_title#:#AI Generator
+ai_subtitle#:#Automatically create quizzes
+ai_label_prompt#:#Prompt
+ai_desc_prompt#:#Write your custom prompt for the AI.
+ai_label_question_type#:#Question Type
+ai_option_type_single#:#Single Choice – One correct answer per question
+ai_option_type_multiple#:#Multiple Choice – Multiple correct answers per question
+ai_option_type_mixed#:#Mixed – Both single and multiple choice questions
+ai_label_difficulty#:#Difficulty Level
+ai_option_easy#:#Easy – Basic knowledge questions
+ai_option_medium#:#Medium – Advanced understanding
+ai_option_hard#:#Hard – Complex concepts
+ai_option_mixed#:#Mixed – Various difficulty levels
+ai_label_question_count#:#Number of Questions
+ai_desc_question_count#:#How many questions should be generated
+ai_label_context#:#Additional Context (Optional)
+ai_desc_context#:#Add content from a PDF or other text to provide context for quiz generation.
+ai_label_file#:#ILIAS File (Optional)
+ai_desc_file#:#Supported formats: Word, PowerPoint, PDF, TeX and learning modules. Select a file from this course/folder to use its content as context.
+ai_label_file_ref#:#ILIAS File Reference (Optional)
+ai_desc_file_ref#:#Enter the ref_id of an ILIAS file object to use its content as context.
+ai_error_difficulty#:#Invalid difficulty level
+ai_error_question_count#:#Question count must be between 1 and 10
+ai_error_no_content#:#AI returned no content
+ai_btn_generate#:#Generate Quiz
+ai_loading#:#Generating quiz...
+ai_loading_hint#:#This may take up to 3 minutes.
+ai_success#:#Quiz successfully generated and added!
+ai_error_prefix#:#Error:
+
+quiz_question_prefix#:#Question
+quiz_btn_check#:#Check Answers
+quiz_btn_reset#:#Reset
+quiz_result_excellent#:#Excellent!
+quiz_result_practice#:#Keep practicing!
+quiz_result_good#:#Well done!
+quiz_result_unanswered#:#unanswered question(s)
+
+config_general#:#General Settings
+config_ai_settings#:#AI Settings
+config_ai_enabled_label#:#Enable AI Features
+config_ai_enabled_info#:#Enable this option to allow AI-powered quiz generation. When disabled, quizzes can only be created manually.
+config_available_services#:#Available Services
+config_not_available#:#Plugin configuration is not available until the plugin is activated.
+config_gwdg_label#:#GWDG (Academic Cloud)
+config_google_label#:#Google Gemini API
+config_openai_label#:#OpenAI ChatGPT
+config_system_prompt_label#:#System Prompt
+config_system_prompt_info#:#Enter the system prompt for quiz generation. Use {topic} and {question_count} as placeholders. Leave empty for default behavior.
+config_gwdg_key_label#:#GWDG API Key
+config_gwdg_key_info#:#Enter your GWDG API key
+config_gwdg_model_label#:#GWDG Model
+config_model_gwdg_llama#:#Llama 3.3 70B – Fast and reliable
+config_model_gwdg_qwen#:#Qwen 3 235B Thinking – Best reasoning
+config_model_gwdg_mistral#:#Mistral Large 3 675B – Most powerful
+config_model_google_gemini#:#Gemini 2.5 Flash
+config_enabled_models_info#:#Make available to users
+config_google_key_label#:#Google Gemini API Key
+config_google_key_info#:#Enter your Google Gemini API key
+config_openai_model_label#:#OpenAI Model
+config_openai_key_label#:#OpenAI API Key
+config_openai_key_info#:#Enter your OpenAI API key from https://platform.openai.com/api-keys
+config_model_gpt52#:#GPT-5.2 – Best model for complex quizzes
+config_model_gpt5_mini#:#GPT-5 Mini – Good balance of quality and speed
+config_model_gpt5_nano#:#GPT-5 Nano – Fastest model for simple quizzes
+config_model_o4_mini#:#o4-mini – Fast reasoning model
+config_msg_success#:#Configuration saved successfully
+config_tab_gwdg#:#GWDG
+config_tab_google#:#Google Gemini
+config_tab_openai#:#OpenAI ChatGPT

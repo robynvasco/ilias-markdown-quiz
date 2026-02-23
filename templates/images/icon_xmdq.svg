@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 22 22">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #4c6586;
+        stroke: #4c6586;
+        stroke-width: 0.5px;
+      }
+    </style>
+  </defs>
+  <g>
+    <!-- Markdown "M" symbol -->
+    <path class="cls-1" d="M3,6 L3,16 L5.5,16 L5.5,10.5 L7.5,13 L9.5,10.5 L9.5,16 L12,16 L12,6 L9.5,6 L7.5,9 L5.5,6 Z"/>
+    <!-- Question mark for quiz -->
+    <path class="cls-1" d="M15,7 Q17,7 17,9 Q17,10.2 16,10.7 L16,12 L15,12 L15,10.5 Q16,10 16,9 Q16,8 15,8 Q14,8 14,9 L13,9 Q13,7 15,7 Z"/>
+    <circle class="cls-1" cx="15.5" cy="14" r="0.7"/>
+  </g>
+</svg>
