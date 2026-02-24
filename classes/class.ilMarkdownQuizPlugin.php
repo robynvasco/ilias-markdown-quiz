@@ -2,10 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/platform/class.ilMarkdownQuizConfig.php';
-require_once __DIR__ . '/platform/class.ilMarkdownQuizEncryption.php';
 
 use platform\ilMarkdownQuizConfig;
-use platform\ilMarkdownQuizEncryption;
 
 /**
  * MarkdownQuiz Plugin Main Class
@@ -14,7 +12,6 @@ use platform\ilMarkdownQuizEncryption;
  * handles lifecycle events (installation, update, uninstall).
  * 
  * Features:
- * - Automatic API key encryption migration on update
  * - Clean uninstall with complete data removal
  * - Support for object copying
  * 
@@ -38,25 +35,6 @@ class ilMarkdownQuizPlugin extends ilRepositoryObjectPlugin
         return self::PLUGIN_NAME;
     }
     
-    /**
-     * Post-update hook
-     * 
-     * Called automatically by ILIAS after plugin is updated to a new version.
-     * Handles data migration tasks:
-     * - Encrypts existing plaintext API keys with AES-256-CBC
-     * - Errors are logged but don't fail the update
-     */
-    protected function afterUpdate(): void
-    {
-        try {
-            // Migrate existing API keys to encrypted format
-            ilMarkdownQuizEncryption::migrateApiKeys();
-        } catch (\Exception $e) {
-            // Log error but don't fail the update
-            error_log("MarkdownQuiz: API key migration failed: " . $e->getMessage());
-        }
-    }
-
     /**
      * Custom uninstall cleanup
      * 

@@ -123,14 +123,12 @@ class ilMarkdownQuizEncryption
         $data = base64_decode($encryptedValue, true);
         
         if ($data === false) {
-            // Not encrypted or corrupted, return as is
-            return $encryptedValue;
+            throw new ilMarkdownQuizException('Invalid encrypted value format');
         }
         
         // Check if data is long enough to contain IV
         if (strlen($data) < self::IV_LENGTH) {
-            // Too short to be encrypted, return as is
-            return $encryptedValue;
+            throw new ilMarkdownQuizException('Invalid encrypted value length');
         }
         
         $key = self::getEncryptionKey();
@@ -149,9 +147,7 @@ class ilMarkdownQuizEncryption
         );
         
         if ($decrypted === false) {
-            // Decryption failed, might be old unencrypted data
-            // Return original value for backward compatibility
-            return $encryptedValue;
+            throw new ilMarkdownQuizException('Decryption failed');
         }
         
         return $decrypted;
@@ -182,36 +178,4 @@ class ilMarkdownQuizEncryption
         return true;
     }
     
-    /**
-     * Migrate existing plain text API keys to encrypted format
-     * Should be called after plugin update
-     * @return void
-     */
-    public static function migrateApiKeys(): void
-    {
-        ilMarkdownQuizConfig::load();
-        
-        $keysToMigrate = [
-            'gwdg_api_key',
-            'google_api_key',
-            'openai_api_key'
-        ];
-        
-        $migrated = false;
-        
-        foreach ($keysToMigrate as $keyName) {
-            $value = ilMarkdownQuizConfig::get($keyName);
-            
-            if (!empty($value) && !self::isEncrypted($value)) {
-                // Key exists and is not encrypted, encrypt it
-                $encrypted = self::encrypt($value);
-                ilMarkdownQuizConfig::set($keyName, $encrypted);
-                $migrated = true;
-            }
-        }
-        
-        if ($migrated) {
-            ilMarkdownQuizConfig::save();
-        }
-    }
 }

@@ -112,12 +112,6 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
             $system_prompt = "Generate exactly [QUESTION_COUNT] quiz questions with difficulty level: [DIFFICULTY]";
         }
         
-        // Convert legacy placeholder formats
-        $system_prompt = str_replace('{{question_count}}', '[QUESTION_COUNT]', $system_prompt);
-        $system_prompt = str_replace('{{difficulty}}', '[DIFFICULTY]', $system_prompt);
-        $system_prompt = str_replace('{question_count}', '[QUESTION_COUNT]', $system_prompt);
-        $system_prompt = str_replace('{difficulty}', '[DIFFICULTY]', $system_prompt);
-        
         // Replace placeholders with actual values
         $system_prompt = str_replace('[DIFFICULTY]', $difficulty, $system_prompt);
         $system_prompt = str_replace('[QUESTION_COUNT]', (string)$question_count, $system_prompt);

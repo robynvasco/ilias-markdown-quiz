@@ -42,14 +42,17 @@ $emptyDecrypted = ilMarkdownQuizEncryption::decrypt($emptyEncrypted);
 echo "Empty decrypted: '$emptyDecrypted'\n";
 echo "Match: " . ($emptyEncrypted === $emptyDecrypted ? "✓ PASS" : "✗ FAIL") . "\n\n";
 
-// Test 3: Plain text detection (backward compatibility)
-echo "Test 3: Plain Text Detection\n";
+// Test 3: Invalid ciphertext should fail (hard cutover, no plaintext fallback)
+echo "Test 3: Invalid Ciphertext Rejection\n";
 $plainText = "plain-text-api-key";
 echo "Plain text: $plainText\n";
 echo "Is Encrypted: " . (ilMarkdownQuizEncryption::isEncrypted($plainText) ? "Yes" : "No") . "\n";
-$decryptedPlain = ilMarkdownQuizEncryption::decrypt($plainText);
-echo "Decrypted plain: $decryptedPlain\n";
-echo "Match (should return original): " . ($plainText === $decryptedPlain ? "✓ PASS" : "✗ FAIL") . "\n\n";
+try {
+    ilMarkdownQuizEncryption::decrypt($plainText);
+    echo "Decrypt invalid input: ✗ FAIL (expected exception)\n\n";
+} catch (Exception $e) {
+    echo "Decrypt invalid input: ✓ PASS (" . $e->getMessage() . ")\n\n";
+}
 
 // Test 4: Multiple encryptions produce different ciphertext (IV randomness)
 echo "Test 4: IV Randomness\n";
