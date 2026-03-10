@@ -12,6 +12,9 @@ require_once __DIR__ . '/../classes/platform/class.ilMarkdownQuizXSSProtection.p
 use platform\ilMarkdownQuizXSSProtection;
 use platform\ilMarkdownQuizException;
 
+const TEST_PROMPT_LIMIT = 5000;
+const TEST_CONTEXT_LIMIT = 50000;
+
 echo "========================================\n";
 echo "Input Validation Test Suite\n";
 echo "========================================\n\n";
@@ -23,9 +26,9 @@ $failed = 0;
 echo "Test 1: Prompt Length Validation\n";
 echo "----------------------------------\n";
 try {
-    $valid_prompt = str_repeat("a", 5000);
-    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($valid_prompt, 5000);
-    echo "✓ Valid prompt (5000 chars) accepted\n";
+    $valid_prompt = str_repeat("a", TEST_PROMPT_LIMIT);
+    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($valid_prompt, TEST_PROMPT_LIMIT);
+    echo "✓ Valid prompt (" . TEST_PROMPT_LIMIT . " chars) accepted\n";
     $passed++;
 } catch (Exception $e) {
     echo "✗ Valid prompt rejected: " . $e->getMessage() . "\n";
@@ -33,23 +36,23 @@ try {
 }
 
 try {
-    $invalid_prompt = str_repeat("a", 5001);
-    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($invalid_prompt, 5000);
-    echo "✗ Invalid prompt (5001 chars) was accepted - should have failed!\n";
+    $invalid_prompt = str_repeat("a", TEST_PROMPT_LIMIT + 1);
+    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($invalid_prompt, TEST_PROMPT_LIMIT);
+    echo "✗ Invalid prompt (" . (TEST_PROMPT_LIMIT + 1) . " chars) was accepted - should have failed!\n";
     $failed++;
 } catch (ilMarkdownQuizException $e) {
-    echo "✓ Invalid prompt (5001 chars) rejected: " . $e->getMessage() . "\n";
+    echo "✓ Invalid prompt (" . (TEST_PROMPT_LIMIT + 1) . " chars) rejected: " . $e->getMessage() . "\n";
     $passed++;
 }
 echo "\n";
 
-// Test 2: Context Length Validation (max 10000 chars)
+// Test 2: Context Length Validation (max 50000 chars)
 echo "Test 2: Context Length Validation\n";
 echo "-----------------------------------\n";
 try {
-    $valid_context = str_repeat("b", 10000);
-    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($valid_context, 10000);
-    echo "✓ Valid context (10000 chars) accepted\n";
+    $valid_context = str_repeat("b", TEST_CONTEXT_LIMIT);
+    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($valid_context, TEST_CONTEXT_LIMIT);
+    echo "✓ Valid context (" . TEST_CONTEXT_LIMIT . " chars) accepted\n";
     $passed++;
 } catch (Exception $e) {
     echo "✗ Valid context rejected: " . $e->getMessage() . "\n";
@@ -57,12 +60,12 @@ try {
 }
 
 try {
-    $invalid_context = str_repeat("b", 10001);
-    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($invalid_context, 10000);
-    echo "✗ Invalid context (10001 chars) was accepted - should have failed!\n";
+    $invalid_context = str_repeat("b", TEST_CONTEXT_LIMIT + 1);
+    $result = ilMarkdownQuizXSSProtection::sanitizeUserInput($invalid_context, TEST_CONTEXT_LIMIT);
+    echo "✗ Invalid context (" . (TEST_CONTEXT_LIMIT + 1) . " chars) was accepted - should have failed!\n";
     $failed++;
 } catch (ilMarkdownQuizException $e) {
-    echo "✓ Invalid context (10001 chars) rejected: " . $e->getMessage() . "\n";
+    echo "✓ Invalid context (" . (TEST_CONTEXT_LIMIT + 1) . " chars) rejected: " . $e->getMessage() . "\n";
     $passed++;
 }
 echo "\n";
@@ -121,10 +124,10 @@ echo "\n";
 
 // Test 5: Null Byte Sanitization
 echo "Test 5: Null Byte Sanitization\n";
-echo "--------------------------------\n";
+    echo "--------------------------------\n";
 try {
     $input_with_nulls = "Test\0input\0with\0nulls";
-    $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($input_with_nulls, 5000);
+    $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($input_with_nulls, TEST_PROMPT_LIMIT);
     if (strpos($sanitized, "\0") === false) {
         echo "✓ Null bytes removed: '{$sanitized}'\n";
         $passed++;
@@ -143,7 +146,7 @@ echo "Test 6: Whitespace Normalization\n";
 echo "----------------------------------\n";
 try {
     $input_with_whitespace = "Test   multiple    spaces\n\nand\n\nnewlines";
-    $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($input_with_whitespace, 5000);
+    $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($input_with_whitespace, TEST_PROMPT_LIMIT);
     if (!preg_match('/\s{2,}/', $sanitized)) {
         echo "✓ Whitespace normalized: '{$sanitized}'\n";
         $passed++;

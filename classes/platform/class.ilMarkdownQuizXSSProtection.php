@@ -215,13 +215,16 @@ class ilMarkdownQuizXSSProtection
         // Remove null bytes
         $input = str_replace("\0", '', $input);
 
-        // Remove control characters (except newlines and tabs)
+        // Remove control characters but keep line breaks/tabs for paragraph structure
         $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $input);
 
-        // Normalize whitespace
-        $input = preg_replace('/\s+/', ' ', $input);
+        // Normalize line endings while preserving paragraph breaks
+        $input = str_replace(["\r\n", "\r"], "\n", $input);
 
-        // Trim
+        // Collapse only spaces/tabs inside lines, keep newlines untouched
+        $input = preg_replace('/[ \t]+/u', ' ', $input);
+
+        // Trim only outer whitespace, not internal newlines
         $input = trim($input);
 
         return $input;

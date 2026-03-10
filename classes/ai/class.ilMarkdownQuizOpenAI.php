@@ -42,7 +42,7 @@ class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
         $this->model = $model;
     }
 
-    public function generateQuiz(string $user_prompt, string $difficulty, int $question_count): string
+    public function generateQuiz(string $user_prompt, string $difficulty, int $question_count, array $options = []): string
     {
         $serviceName = 'openai';
 
@@ -50,7 +50,7 @@ class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
             ilMarkdownQuizCircuitBreaker::checkAvailability($serviceName);
 
             $prompt = $this->buildPrompt($user_prompt, $difficulty, $question_count);
-            $response = $this->callAPI($prompt);
+            $response = $this->callAPI($prompt, $options);
             $parsed = $this->parseResponse($response);
 
             ilMarkdownQuizCircuitBreaker::recordSuccess($serviceName);
@@ -83,7 +83,7 @@ class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
      * Endpoint: POST https://api.openai.com/v1/responses
      * Docs: https://developers.openai.com/api/docs/guides/text
      */
-    private function callAPI(string $prompt): string
+    private function callAPI(string $prompt, array $options = []): string
     {
         if (empty($this->api_key)) {
             throw new ilMarkdownQuizException("OpenAI API key is not configured");
@@ -91,18 +91,37 @@ class ilMarkdownQuizOpenAI extends ilMarkdownQuizLLM
 
         $url = "https://api.openai.com/v1/responses";
 
+        $content_parts = [
+            [
+                "type" => "input_text",
+                "text" => $prompt
+            ]
+        ];
+
+        $pdf_file = $options['pdf_file'] ?? null;
+        if (is_array($pdf_file)
+            && !empty($pdf_file['content'])
+            && !empty($pdf_file['filename'])) {
+            $base64_pdf = base64_encode((string)$pdf_file['content']);
+            $content_parts[] = [
+                "type" => "input_file",
+                "filename" => (string)$pdf_file['filename'],
+                "file_data" => "data:application/pdf;base64," . $base64_pdf
+            ];
+        }
+
         $payload = [
             "model" => $this->model,
             "input" => [
                 [
                     "role" => "user",
-                    "content" => $prompt
+                    "content" => $content_parts
                 ]
             ],
             "reasoning" => [
                 "effort" => "low"
             ],
-            "store" => false
+            "store" => true
         ];
         $payload_json = json_encode($payload);
         if ($payload_json === false) {

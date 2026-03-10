@@ -98,3 +98,36 @@ if ($db->tableExists('rep_robj_xmdq_data')) {
     }
 }
 ?>
+<#4>
+<?php
+global $DIC;
+$db = $DIC->database();
+
+if ($db->tableExists('rep_robj_xmdq_data')) {
+    if ($db->tableColumnExists('rep_robj_xmdq_data', 'last_prompt')) {
+        $db->modifyTableColumn('rep_robj_xmdq_data', 'last_prompt', [
+            'type'    => 'clob',
+            'notnull' => false
+        ]);
+    }
+
+    if ($db->tableColumnExists('rep_robj_xmdq_data', 'last_context')) {
+        $db->modifyTableColumn('rep_robj_xmdq_data', 'last_context', [
+            'type'    => 'clob',
+            'notnull' => false
+        ]);
+    }
+}
+?>
+<#5>
+<?php
+global $DIC;
+$db = $DIC->database();
+
+if ($db->tableExists('xmdq_config') && $db->tableColumnExists('xmdq_config', 'value')) {
+    $db->modifyTableColumn('xmdq_config', 'value', [
+        'type'    => 'clob',
+        'notnull' => false
+    ]);
+}
+?>

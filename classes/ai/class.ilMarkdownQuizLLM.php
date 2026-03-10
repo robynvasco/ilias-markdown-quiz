@@ -20,7 +20,7 @@ abstract class ilMarkdownQuizLLM
      * @param int $question_count Number of questions (1-10)
      * @throws ilMarkdownQuizException On API/validation errors
      */
-    abstract public function generateQuiz(string $user_prompt, string $difficulty, int $question_count): string;
+    abstract public function generateQuiz(string $user_prompt, string $difficulty, int $question_count, array $options = []): string;
 
     /**
      * Build provider-specific prompt payload.

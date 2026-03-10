@@ -208,20 +208,26 @@ class ilObjMarkdownQuiz extends ilObjectPlugin
     public function doUpdate(): void
     {
         global $DIC;
+        
+        // Check if columns exist (backwards compatibility during migration)
+        $has_last_prompt = $DIC->database()->tableColumnExists('rep_robj_xmdq_data', 'last_prompt');
+        $has_difficulty = $DIC->database()->tableColumnExists('rep_robj_xmdq_data', 'last_difficulty');
+        $has_question_count = $DIC->database()->tableColumnExists('rep_robj_xmdq_data', 'last_question_count');
+        $has_context = $DIC->database()->tableColumnExists('rep_robj_xmdq_data', 'last_context');
+        $has_file_ref_id = $DIC->database()->tableColumnExists('rep_robj_xmdq_data', 'last_file_ref_id');
+        
+        $fields = ["md_content" => ["clob", $this->md_content], "is_online" => ["integer", (int)$this->online]];
+        if ($has_last_prompt) $fields["last_prompt"] = ["clob", $this->last_prompt];
+        if ($has_difficulty) $fields["last_difficulty"] = ["text", $this->last_difficulty];
+        if ($has_question_count) $fields["last_question_count"] = ["integer", $this->last_question_count];
+        if ($has_context) $fields["last_context"] = ["clob", $this->last_context];
+        if ($has_file_ref_id) $fields["last_file_ref_id"] = ["integer", $this->last_file_ref_id];
 
         // SECURITY: Explicit integer type casting for ID parameter
         $DIC->database()->replace(
             "rep_robj_xmdq_data",
             ["id" => ["integer", (int)$this->getId()]],
-            [
-                "md_content" => ["clob", $this->md_content],
-                "is_online" => ["integer", (int)$this->online],
-                "last_prompt" => ["text", $this->last_prompt],
-                "last_difficulty" => ["text", $this->last_difficulty],
-                "last_question_count" => ["integer", $this->last_question_count],
-                "last_context" => ["text", $this->last_context],
-                "last_file_ref_id" => ["integer", $this->last_file_ref_id]
-            ]
+            $fields
         );
     }
 

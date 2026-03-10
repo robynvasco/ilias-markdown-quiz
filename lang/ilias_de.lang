@@ -54,7 +54,7 @@ ai_config_incomplete#:#Die KI-Konfiguration ist unvollständig. Bitte kontaktier
 ai_title#:#KI-Generator
 ai_subtitle#:#Quizze automatisch erstellen
 ai_label_prompt#:#Eingabeaufforderung
-ai_desc_prompt#:#Schreiben Sie Ihre eigene Eingabeaufforderung für die KI.
+ai_desc_prompt#:# 
 ai_label_question_type#:#Fragentyp
 ai_option_type_single#:#Single Choice – Eine richtige Antwort pro Frage
 ai_option_type_multiple#:#Multiple Choice – Mehrere richtige Antworten pro Frage
@@ -67,18 +67,20 @@ ai_option_mixed#:#Gemischt – Verschiedene Schwierigkeitsgrade
 ai_label_question_count#:#Anzahl der Fragen
 ai_desc_question_count#:#Wie viele Fragen sollen generiert werden
 ai_label_context#:#Zusätzlicher Kontext (Optional)
-ai_desc_context#:#Fügen Sie Inhalte aus einem PDF oder anderem Text hinzu, um Kontext für die Quiz-Generierung bereitzustellen.
+ai_desc_context#:# 
 ai_label_file#:#ILIAS-Datei (Optional)
-ai_desc_file#:#Unterstützte Formate: Word, PowerPoint, PDF, TeX und Lernmodule. Wählen Sie eine Datei aus diesem Kurs/Ordner aus, um deren Inhalt als Kontext zu verwenden.
+ai_desc_file#:#Unterstützte Formate: Word, PowerPoint, PDF, TeX, Lernmodule. Für bessere Ergebnisse sollten Dateien weniger als 10 Seiten Text enthalten. Zu lange Dateien werden automatisch gekürzt.
 ai_label_file_ref#:#ILIAS-Dateireferenz (Optional)
 ai_desc_file_ref#:#Geben Sie die ref_id eines ILIAS-Dateiobjekts ein, um dessen Inhalt als Kontext zu verwenden.
 ai_error_difficulty#:#Ungültiger Schwierigkeitsgrad
 ai_error_question_count#:#Fragenanzahl muss zwischen 1 und 10 liegen
 ai_error_no_content#:#KI hat keinen Inhalt zurückgegeben
+ai_error_input_hard_limit#:#Eingabe zu lang.
 ai_btn_generate#:#Quiz generieren
 ai_loading#:#Quiz wird generiert...
 ai_loading_hint#:#Dies kann bis zu 3 Minuten dauern.
 ai_success#:#Quiz erfolgreich generiert und hinzugefügt!
+ai_success_trimmed#:#Quiz erfolgreich generiert. Zu langer Kontext wurde automatisch gekürzt.
 ai_error_prefix#:#Fehler:
 
 quiz_question_prefix#:#Frage

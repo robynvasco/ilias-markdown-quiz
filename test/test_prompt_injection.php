@@ -17,6 +17,8 @@ require_once dirname(__DIR__) . '/classes/platform/class.ilMarkdownQuizException
 use platform\ilMarkdownQuizXSSProtection;
 use platform\ilMarkdownQuizException;
 
+const TEST_PROMPT_LIMIT = 5000;
+
 echo "========================================\n";
 echo "Prompt Input Handling Tests\n";
 echo "========================================\n\n";
@@ -44,7 +46,7 @@ echo "---------------------------------------------------------------\n";
 foreach ($injection_like_prompts as $i => $prompt) {
     $num = $i + 1;
     try {
-        $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($prompt, 5000);
+        $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($prompt, TEST_PROMPT_LIMIT);
         if ($sanitized === trim(preg_replace('/\s+/', ' ', $prompt))) {
             echo "PASS {$num}: Sanitized and accepted\n";
             $passed++;
@@ -64,7 +66,7 @@ echo "--------------------------------------\n";
 foreach ($legitimate_prompts as $i => $prompt) {
     $num = $i + 1;
     try {
-        ilMarkdownQuizXSSProtection::sanitizeUserInput($prompt, 5000);
+        ilMarkdownQuizXSSProtection::sanitizeUserInput($prompt, TEST_PROMPT_LIMIT);
         echo "PASS {$num}: Accepted\n";
         $passed++;
     } catch (ilMarkdownQuizException $e) {
@@ -78,7 +80,7 @@ echo "Test 3: Control characters are removed\n";
 echo "--------------------------------------\n";
 try {
     $raw = "Hello\x00\x07 world\t\n";
-    $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($raw, 5000);
+    $sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($raw, TEST_PROMPT_LIMIT);
     if (strpos($sanitized, "\0") === false && strpos($sanitized, "\x07") === false) {
         echo "PASS: Control characters removed\n";
         $passed++;

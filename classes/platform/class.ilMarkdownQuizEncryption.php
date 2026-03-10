@@ -69,8 +69,8 @@ class ilMarkdownQuizEncryption
         }
         
         // Fallback: derive deterministic installation-specific salt.
-        // Avoid hardcoded global constant that would be identical across installations.
-        $material = (CLIENT_ID ?? 'ilias') . '|' . __DIR__ . '|' . php_uname('n');
+        // Must stay stable across container restarts/recreations.
+        $material = (CLIENT_ID ?? 'ilias') . '|' . __DIR__;
         return hash('sha256', $material);
     }
     

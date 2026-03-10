@@ -61,7 +61,7 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
      * @return string Generated quiz in Markdown format
      * @throws ilMarkdownQuizException On API errors or Circuit Breaker open
      */
-    public function generateQuiz(string $user_prompt, string $difficulty, int $question_count): string
+    public function generateQuiz(string $user_prompt, string $difficulty, int $question_count, array $options = []): string
     {
         $serviceName = 'gwdg';
         

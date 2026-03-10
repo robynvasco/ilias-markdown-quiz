@@ -54,7 +54,7 @@ ai_config_incomplete#:#AI configuration is incomplete. Please contact an adminis
 ai_title#:#AI Generator
 ai_subtitle#:#Automatically create quizzes
 ai_label_prompt#:#Prompt
-ai_desc_prompt#:#Write your custom prompt for the AI.
+ai_desc_prompt#:#Write your custom prompt for the AI (max. 50,000 characters).
 ai_label_question_type#:#Question Type
 ai_option_type_single#:#Single Choice – One correct answer per question
 ai_option_type_multiple#:#Multiple Choice – Multiple correct answers per question
@@ -67,18 +67,20 @@ ai_option_mixed#:#Mixed – Various difficulty levels
 ai_label_question_count#:#Number of Questions
 ai_desc_question_count#:#How many questions should be generated
 ai_label_context#:#Additional Context (Optional)
-ai_desc_context#:#Add content from a PDF or other text to provide context for quiz generation.
+ai_desc_context#:#Optional context (max. 50,000 characters). Longer file context is automatically truncated.
 ai_label_file#:#ILIAS File (Optional)
-ai_desc_file#:#Supported formats: Word, PowerPoint, PDF, TeX and learning modules. Select a file from this course/folder to use its content as context.
+ai_desc_file#:#Supported formats: Word, PowerPoint, PDF, TeX and learning modules. For better results, files should contain less than 10 pages of text. Files that are too long are automatically truncated.
 ai_label_file_ref#:#ILIAS File Reference (Optional)
 ai_desc_file_ref#:#Enter the ref_id of an ILIAS file object to use its content as context.
 ai_error_difficulty#:#Invalid difficulty level
 ai_error_question_count#:#Question count must be between 1 and 10
 ai_error_no_content#:#AI returned no content
+ai_error_input_hard_limit#:#Input too long.
 ai_btn_generate#:#Generate Quiz
 ai_loading#:#Generating quiz...
 ai_loading_hint#:#This may take up to 3 minutes.
 ai_success#:#Quiz successfully generated and added!
+ai_success_trimmed#:#Quiz successfully generated. Overlong context was automatically truncated.
 ai_error_prefix#:#Error:
 
 quiz_question_prefix#:#Question

@@ -45,6 +45,14 @@ require_once __DIR__ . '/ai/class.ilMarkdownQuizOpenAI.php';
  */
 class ilObjMarkdownQuizGUI extends ilObjectPluginGUI
 {
+    private const PROMPT_CHAR_LIMIT = 5000;
+    private const CONTEXT_TOTAL_CHAR_LIMIT = 100000;
+    private const FILE_EXTRACT_CHAR_LIMIT = 100000;
+    private const PROMPT_HARD_INPUT_CHAR_LIMIT = 60000;
+    private const CONTEXT_HARD_INPUT_CHAR_LIMIT = 110000;
+    private const STORAGE_PROMPT_CHAR_LIMIT = 60000;
+    private const STORAGE_CONTEXT_CHAR_LIMIT = 110000;
+
     /** @var Factory ILIAS UI factory for creating UI components */
     private Factory $factory;
     
@@ -842,7 +850,7 @@ CSS;
      * Features:
      * - Supports OpenAI, Google Gemini, and GWDG Academic Cloud
      * - Prompt input with 5000 char limit
-     * - Optional context field (10000 chars) or file selection
+     * - Optional context textarea (50000 chars) plus optional file selection
      * - Difficulty selection (easy, medium, hard, mixed)
      * - Question count (1-10)
      * - Pre-fills last used values for convenience
@@ -911,7 +919,7 @@ CSS;
         // Load last used prompt from this quiz object
         $last_prompt = $this->object->getLastPrompt() ?: 'Generate a quiz about ';
         
-        $prompt_field = $this->factory->input()->field()->textarea($this->plugin->txt('ai_label_prompt'), $this->plugin->txt('ai_desc_prompt'))
+        $prompt_field = $this->factory->input()->field()->textarea($this->plugin->txt('ai_label_prompt'))
             ->withValue($last_prompt)
             ->withRequired(true);
 
@@ -939,8 +947,7 @@ CSS;
         )->withValue('3')->withRequired(true);
 
         $context_field = $this->factory->input()->field()->textarea(
-            $this->plugin->txt('ai_label_context'),
-            $this->plugin->txt('ai_desc_context')
+            $this->plugin->txt('ai_label_context')
         )->withValue($this->object->getLastContext());
 
         // Get available files from parent container
@@ -1002,8 +1009,22 @@ CSS;
                     ilMarkdownQuizRateLimiter::incrementConcurrent();
                     
                     // SECURITY: Validate and sanitize inputs
-                    $prompt = ilMarkdownQuizXSSProtection::sanitizeUserInput($data['prompt'], 5000);
-                    $original_prompt = $prompt;
+                    $raw_prompt = (string)($data['prompt'] ?? '');
+                    $raw_context = (string)($data['context'] ?? '');
+                    $input_trimmed = false;
+
+                    if (mb_strlen($raw_prompt) > self::PROMPT_HARD_INPUT_CHAR_LIMIT
+                        || mb_strlen($raw_context) > self::CONTEXT_HARD_INPUT_CHAR_LIMIT) {
+                        throw new \Exception($this->plugin->txt('ai_error_input_hard_limit'));
+                    }
+
+                    $prompt_sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($raw_prompt, self::PROMPT_HARD_INPUT_CHAR_LIMIT);
+                    $prompt_to_save = $this->truncateToChars($prompt_sanitized, self::STORAGE_PROMPT_CHAR_LIMIT);
+                    $prompt = $prompt_to_save;
+                    if (mb_strlen($prompt) > self::PROMPT_CHAR_LIMIT) {
+                        $prompt = $this->truncateToChars($prompt, self::PROMPT_CHAR_LIMIT);
+                        $input_trimmed = true;
+                    }
 
                     $question_type = $data['question_type'];
                     $difficulty = $data['difficulty'];
@@ -1026,14 +1047,44 @@ CSS;
                     }
                     
                     // Get context from textarea or file
-                    $context = ilMarkdownQuizXSSProtection::sanitizeUserInput($data['context'] ?? '', 10000);
-                    $context_to_save = $context;
+                    $context_sanitized = ilMarkdownQuizXSSProtection::sanitizeUserInput($raw_context, self::CONTEXT_HARD_INPUT_CHAR_LIMIT);
+                    $context_to_save = $this->truncateToChars($context_sanitized, self::STORAGE_CONTEXT_CHAR_LIMIT);
+                    $context = $context_to_save;
+                    if (mb_strlen($context) > self::CONTEXT_TOTAL_CHAR_LIMIT) {
+                        $context = $this->truncateToChars($context, self::CONTEXT_TOTAL_CHAR_LIMIT);
+                        $input_trimmed = true;
+                    }
+
+                    $generation_options = [];
 
                     // If file ref_id provided, fetch file content
                     if (!empty($data['file_ref_id']) && $data['file_ref_id'] > 0) {
-                        $file_context = $this->getFileContent((int)$data['file_ref_id']);
-                        if (!empty($file_context)) {
-                            $context .= ($context ? "\n\n" : "") . $file_context;
+                        $selected_model = (string)($data['model'] ?? '');
+                        $file_ref_id = (int)$data['file_ref_id'];
+                        $file_payload = $this->getFilePayload($file_ref_id);
+
+                        if ($this->shouldSendPdfDirectlyToOpenAI($selected_model, $file_payload)) {
+                            $generation_options['pdf_file'] = [
+                                'content' => $file_payload['content'],
+                                'filename' => $file_payload['filename'],
+                                'mime_type' => 'application/pdf'
+                            ];
+                        } else {
+                            $file_context = $this->getFileContent($file_ref_id, $file_payload);
+                            if (!empty($file_context)) {
+                                $separator = $context ? "\n\n" : "";
+                                $remaining_context_budget = self::CONTEXT_TOTAL_CHAR_LIMIT - mb_strlen($context) - mb_strlen($separator);
+                                if ($remaining_context_budget > 0) {
+                                    $original_file_context_length = mb_strlen($file_context);
+                                    $file_context = $this->truncateToChars($file_context, $remaining_context_budget);
+                                    $context .= $separator . $file_context;
+                                    if (mb_strlen($file_context) < $original_file_context_length) {
+                                        $input_trimmed = true;
+                                    }
+                                } else {
+                                    $input_trimmed = true;
+                                }
+                            }
                         }
                     }
 
@@ -1043,7 +1094,8 @@ CSS;
                         $difficulty,
                         $question_count,
                         $context,
-                        $data['model'] ?? ''
+                        $data['model'] ?? '',
+                        $generation_options
                     );
 
                     // SECURITY: Protect generated content before storing
@@ -1065,7 +1117,7 @@ CSS;
                             $this->object->setMarkdownContent($markdown);
                         }
 
-                        $this->object->setLastPrompt($original_prompt);
+                        $this->object->setLastPrompt($prompt_to_save);
                         $this->object->setLastDifficulty($difficulty);
                         $this->object->setLastQuestionCount($question_count);
                         $this->object->setLastContext($context_to_save);
@@ -1073,7 +1125,10 @@ CSS;
                         $this->object->update();
 
                         ilMarkdownQuizRateLimiter::decrementConcurrent();
-                        $this->tpl->setOnScreenMessage('success', $this->plugin->txt('ai_success'));
+                        $success_message = $input_trimmed
+                            ? $this->plugin->txt('ai_success_trimmed')
+                            : $this->plugin->txt('ai_success');
+                        $this->tpl->setOnScreenMessage('success', $success_message);
                         $this->ctrl->redirect($this, 'editQuestions');
                         return;
                     }
@@ -1089,6 +1144,7 @@ CSS;
         $html .= "<div class='quiz-form-header'><h2>" . $this->plugin->txt('ai_title') . "</h2><p>" . $this->plugin->txt('ai_subtitle') . "</p></div>";
         $html .= $this->renderer->render($form);
         $html .= "</div>";
+        $html .= $this->getGenerateCharacterCounterScript();
         $html .= $this->getLoadingOverlay();
 
         $this->tpl->setContent($html);
@@ -1174,58 +1230,35 @@ CSS;
         return $files;
     }
 
+    private function truncateToChars(string $text, int $max_chars): string
+    {
+        if (mb_strlen($text) <= $max_chars) {
+            return $text;
+        }
+
+        return rtrim(mb_substr($text, 0, $max_chars));
+    }
+
     /**
      * Get content from an ILIAS File object
      */
-    private function getFileContent(int $ref_id): string
+    private function getFileContent(int $ref_id, ?array $file_payload = null): string
     {
         try {
             // RATE LIMIT: Check file processing limit
             ilMarkdownQuizRateLimiter::recordFileProcessing();
-            
-            global $DIC;
-            
-            // Check if object exists and is a file
-            if (!ilObject::_exists($ref_id, true)) {
+
+            $file_payload ??= $this->getFilePayload($ref_id);
+            if ($file_payload === null) {
                 return '';
             }
-            
-            $type = ilObject::_lookupType($ref_id, true);
-            
-            // Check read permission
-            if (!$DIC->access()->checkAccess('read', '', $ref_id)) {
-                return '';
+
+            if ($file_payload['type'] === 'lm') {
+                return $this->getLearningModuleContent((int)$file_payload['obj_id']);
             }
-            
-            $obj_id = ilObject::_lookupObjectId($ref_id);
-            
-            // Handle Learning Module
-            if ($type === 'lm') {
-                return $this->getLearningModuleContent($obj_id);
-            }
-            
-            // Handle File
-            if ($type !== 'file') {
-                return '';
-            }
-            
-            $file_obj = new ilObjFile($obj_id, false);
-            
-            // Get file via resource storage
-            $resource_id_string = $file_obj->getResourceId();
-            $resource_identification = $DIC->resourceStorage()->manage()->find($resource_id_string);
-            
-            if (!$resource_identification) {
-                return '';
-            }
-            
-            // Use consume to get stream
-            $stakeholder = new ilObjMarkdownQuizStakeholder();
-            $stream = $DIC->resourceStorage()->consume()->stream($resource_identification)->getStream();
-            $content = $stream->getContents();
-            
-            // SECURITY: Validate file size
-            $suffix = strtolower($file_obj->getFileExtension());
+
+            $content = (string)$file_payload['content'];
+            $suffix = (string)$file_payload['suffix'];
             ilMarkdownQuizFileSecurity::validateFileSize($content);
             
             // Try to extract text based on file type
@@ -1249,6 +1282,73 @@ CSS;
             $this->logFileProcessingError('getFileContent', $e, ['ref_id' => $ref_id]);
             return '';
         }
+    }
+
+    /**
+     * @return array{type: string, obj_id: int, suffix: string, content: string, filename: string}|null
+     */
+    private function getFilePayload(int $ref_id): ?array
+    {
+        global $DIC;
+
+        try {
+            if (!ilObject::_exists($ref_id, true)) {
+                return null;
+            }
+
+            $type = ilObject::_lookupType($ref_id, true);
+            if (!$DIC->access()->checkAccess('read', '', $ref_id)) {
+                return null;
+            }
+
+            $obj_id = ilObject::_lookupObjectId($ref_id);
+            if ($type === 'lm') {
+                return [
+                    'type' => 'lm',
+                    'obj_id' => $obj_id,
+                    'suffix' => 'lm',
+                    'content' => '',
+                    'filename' => ilObject::_lookupTitle($obj_id) . '.lm'
+                ];
+            }
+
+            if ($type !== 'file') {
+                return null;
+            }
+
+            $file_obj = new ilObjFile($obj_id, false);
+            $resource_id_string = $file_obj->getResourceId();
+            $resource_identification = $DIC->resourceStorage()->manage()->find($resource_id_string);
+            if (!$resource_identification) {
+                return null;
+            }
+
+            $stream = $DIC->resourceStorage()->consume()->stream($resource_identification)->getStream();
+            $content = $stream->getContents();
+
+            return [
+                'type' => 'file',
+                'obj_id' => $obj_id,
+                'suffix' => strtolower($file_obj->getFileExtension()),
+                'content' => $content,
+                'filename' => $file_obj->getTitle() . '.' . strtolower($file_obj->getFileExtension())
+            ];
+        } catch (\Exception $e) {
+            $this->logFileProcessingError('getFilePayload', $e, ['ref_id' => $ref_id]);
+            return null;
+        }
+    }
+
+    private function shouldSendPdfDirectlyToOpenAI(string $selected_model, ?array $file_payload): bool
+    {
+        $registry = ilMarkdownQuizConfigGUI::getModelRegistry();
+        $provider = $registry[$selected_model]['provider'] ?? '';
+
+        return $provider === 'openai'
+            && is_array($file_payload)
+            && ($file_payload['type'] ?? '') === 'file'
+            && ($file_payload['suffix'] ?? '') === 'pdf'
+            && !empty($file_payload['content']);
     }
     
     /**
@@ -1276,8 +1376,8 @@ CSS;
             }
 
             // Limit length
-            if (strlen($text) > 8000) {
-                $text = substr($text, 0, 8000) . '...';
+            if (mb_strlen($text) > self::FILE_EXTRACT_CHAR_LIMIT) {
+                $text = $this->truncateToChars($text, self::FILE_EXTRACT_CHAR_LIMIT) . '...';
             }
             
             return $text;
@@ -1360,8 +1460,8 @@ CSS;
             $text = trim($text);
 
             // Limit length
-            if (strlen($text) > 5000) {
-                $text = substr($text, 0, 5000) . '...';
+            if (mb_strlen($text) > self::FILE_EXTRACT_CHAR_LIMIT) {
+                $text = $this->truncateToChars($text, self::FILE_EXTRACT_CHAR_LIMIT) . '...';
             }
             
             return $text;
@@ -1437,13 +1537,13 @@ CSS;
             $text = trim($text);
 
             // Limit length (avoid cutting inside a $...$ formula)
-            if (strlen($text) > 5000) {
-                $text = substr($text, 0, 5000);
+            if (mb_strlen($text) > self::FILE_EXTRACT_CHAR_LIMIT) {
+                $text = $this->truncateToChars($text, self::FILE_EXTRACT_CHAR_LIMIT);
                 $dollar_count = substr_count($text, '$');
                 if ($dollar_count % 2 !== 0) {
-                    $last_dollar = strrpos($text, '$');
+                    $last_dollar = mb_strrpos($text, '$');
                     if ($last_dollar !== false) {
-                        $text = substr($text, 0, $last_dollar);
+                        $text = mb_substr($text, 0, $last_dollar);
                     }
                 }
                 $text = trim($text) . '...';
@@ -1582,13 +1682,13 @@ CSS;
             $text = trim($text);
 
             // Limit length (avoid cutting inside a $...$ formula)
-            if (strlen($text) > 5000) {
-                $text = substr($text, 0, 5000);
+            if (mb_strlen($text) > self::FILE_EXTRACT_CHAR_LIMIT) {
+                $text = $this->truncateToChars($text, self::FILE_EXTRACT_CHAR_LIMIT);
                 $dollar_count = substr_count($text, '$');
                 if ($dollar_count % 2 !== 0) {
-                    $last_dollar = strrpos($text, '$');
+                    $last_dollar = mb_strrpos($text, '$');
                     if ($last_dollar !== false) {
-                        $text = substr($text, 0, $last_dollar);
+                        $text = mb_substr($text, 0, $last_dollar);
                     }
                 }
                 $text = trim($text) . '...';
@@ -2040,7 +2140,14 @@ CSS;
     /**
      * @throws ilMarkdownQuizAIException
      */
-    private function generateMarkdownQuiz(string $user_prompt, string $difficulty, int $question_count, string $context = '', string $selected_model = ''): string
+    private function generateMarkdownQuiz(
+        string $user_prompt,
+        string $difficulty,
+        int $question_count,
+        string $context = '',
+        string $selected_model = '',
+        array $options = []
+    ): string
     {
         // RATE LIMIT: Check API call limit
         ilMarkdownQuizRateLimiter::recordApiCall();
@@ -2084,7 +2191,7 @@ CSS;
             $full_prompt .= "\n\n[Additional Context:]\n" . $context;
         }
 
-        return $ai->generateQuiz($full_prompt, $difficulty, $question_count);
+        return $ai->generateQuiz($full_prompt, $difficulty, $question_count, $options);
     }
 
     private function renderQuiz(string $markdown_content): string
@@ -2506,6 +2613,22 @@ JS;
         min-height: 200px;
         resize: vertical;
     }
+
+    .quiz-char-counter {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #7f8ea3;
+        text-align: right;
+    }
+
+    .quiz-char-counter.is-near-limit {
+        color: #b26a00;
+    }
+
+    .quiz-char-counter.is-at-limit {
+        color: #c0392b;
+        font-weight: 600;
+    }
     
     /* Extra large textarea for markdown content */
     .quiz-form-wrapper textarea[name*="md_content"] {
@@ -2588,6 +2711,57 @@ JS;
     }
 </style>
 CSS;
+    }
+
+    private function getGenerateCharacterCounterScript(): string
+    {
+        $prompt_limit = self::PROMPT_CHAR_LIMIT;
+        $context_limit = 50000;
+
+        return <<<HTML
+<script>
+(function() {
+    function attachCounter(textarea, limit) {
+        if (!textarea || textarea.dataset.mdquizCounterAttached === '1') {
+            return;
+        }
+
+        textarea.dataset.mdquizCounterAttached = '1';
+        textarea.setAttribute('maxlength', String(limit));
+
+        var counter = document.createElement('div');
+        counter.className = 'quiz-char-counter';
+        textarea.insertAdjacentElement('afterend', counter);
+
+        function updateCounter() {
+            var current = textarea.value.length;
+            counter.textContent = current.toLocaleString() + ' / ' + limit.toLocaleString() + ' Zeichen';
+            counter.classList.toggle('is-near-limit', current >= Math.floor(limit * 0.9) && current < limit);
+            counter.classList.toggle('is-at-limit', current >= limit);
+        }
+
+        textarea.addEventListener('input', updateCounter);
+        updateCounter();
+    }
+
+    function initCounters() {
+        var textareas = document.querySelectorAll('.quiz-form-wrapper [data-il-ui-component="textarea-field-input"] textarea');
+        if (textareas.length > 0) {
+            attachCounter(textareas[0], {$prompt_limit});
+        }
+        if (textareas.length > 1) {
+            attachCounter(textareas[1], {$context_limit});
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCounters);
+    } else {
+        initCounters();
+    }
+})();
+</script>
+HTML;
     }
 
     private function getLoadingOverlay(): string
