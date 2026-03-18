@@ -105,9 +105,9 @@ config_system_prompt_info#:#Enter the system prompt for quiz generation. Use {to
 config_gwdg_key_label#:#GWDG API Key
 config_gwdg_key_info#:#Enter your GWDG API key
 config_gwdg_model_label#:#GWDG Model
-config_model_gwdg_llama#:#Llama 3.3 70B – Fast and reliable
-config_model_gwdg_qwen#:#Qwen 3 235B Thinking – Best reasoning
-config_model_gwdg_mistral#:#Mistral Large 3 675B – Most powerful
+config_model_gwdg_llama#:#Llama 3.3 70B – GWDG-hosted
+config_model_gwdg_qwen#:#Qwen 3 235B Thinking – GWDG-hosted
+config_model_gwdg_mistral#:#Mistral Large 3 675B – GWDG-hosted
 config_model_google_gemini#:#Gemini 2.5 Flash
 config_enabled_models_info#:#Make available to users
 config_google_key_label#:#Google Gemini API Key

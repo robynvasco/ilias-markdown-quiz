@@ -139,7 +139,7 @@ $apiKeys = [
 $defaults = [
     'openai' => 'gpt-5-mini',
     'google' => 'gemini-2.5-flash',
-    'gwdg' => 'meta-llama/Llama-3.3-70B-Instruct',
+    'gwdg' => 'llama-3.3-70b-instruct',
 ];
 
 $selectedModel = $defaults;

@@ -29,14 +29,13 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
 {
     /** All known models with provider and label key */
     private const MODEL_REGISTRY = [
-        'meta-llama/Llama-3.3-70B-Instruct' => ['provider' => 'gwdg', 'label_key' => 'config_model_gwdg_llama'],
-        'Qwen/Qwen3-235B-A22B-Thinking-2507' => ['provider' => 'gwdg', 'label_key' => 'config_model_gwdg_qwen'],
-        'mistralai/Mistral-Large-Instruct-2501' => ['provider' => 'gwdg', 'label_key' => 'config_model_gwdg_mistral'],
-        'gemini-2.5-flash' => ['provider' => 'google', 'label_key' => 'config_model_google_gemini'],
         'gpt-5-nano' => ['provider' => 'openai', 'label_key' => 'config_model_gpt5_nano'],
         'gpt-5-mini' => ['provider' => 'openai', 'label_key' => 'config_model_gpt5_mini'],
         'gpt-5.2' => ['provider' => 'openai', 'label_key' => 'config_model_gpt52'],
         'o4-mini' => ['provider' => 'openai', 'label_key' => 'config_model_o4_mini'],
+        'llama-3.3-70b-instruct' => ['provider' => 'gwdg', 'label_key' => 'config_model_gwdg_llama'],
+        'mistral-large-3-675b-instruct-2512' => ['provider' => 'gwdg', 'label_key' => 'config_model_gwdg_mistral'],
+        'gemini-2.5-flash' => ['provider' => 'google', 'label_key' => 'config_model_google_gemini'],
     ];
 
     protected Factory $factory;
@@ -105,7 +104,7 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
     /**
      * Initialize admin configuration tabs.
      * 
-     * Creates 4 tabs: General, GWDG, Google Gemini, OpenAI ChatGPT.
+     * Creates 4 tabs: General, OpenAI ChatGPT, GWDG, Google Gemini.
      * Sets active tab based on current command from control flow.
      */
     protected function initTabs(): void
@@ -114,6 +113,12 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
             "general",
             $this->getPluginObject()->txt("config_general"),
             $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureGeneral")
+        );
+
+        $this->tabs->addTab(
+            "openai",
+            $this->getPluginObject()->txt("config_tab_openai"),
+            $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureOpenAI")
         );
 
         $this->tabs->addTab(
@@ -126,12 +131,6 @@ class ilMarkdownQuizConfigGUI extends ilPluginConfigGUI
             "google",
             $this->getPluginObject()->txt("config_tab_google"),
             $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureGoogle")
-        );
-
-        $this->tabs->addTab(
-            "openai",
-            $this->getPluginObject()->txt("config_tab_openai"),
-            $this->control->getLinkTargetByClass("ilMarkdownQuizConfigGUI", "configureOpenAI")
         );
 
         switch($this->control->getCmd()) {

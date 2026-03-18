@@ -131,7 +131,15 @@ class ilMarkdownQuizConfig
         
         // Decrypt API keys when retrieving
         if (in_array($key, self::ENCRYPTED_KEYS) && is_string($value) && !empty($value)) {
-            return ilMarkdownQuizEncryption::decrypt($value);
+            if (!ilMarkdownQuizEncryption::isEncrypted($value)) {
+                return $value;
+            }
+
+            try {
+                return ilMarkdownQuizEncryption::decrypt($value);
+            } catch (ilMarkdownQuizException $e) {
+                return $value;
+            }
         }
         
         return $value;
@@ -238,4 +246,3 @@ class ilMarkdownQuizConfig
         self::$updated = [];
     }
 }
-

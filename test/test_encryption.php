@@ -76,4 +76,19 @@ $encLong = ilMarkdownQuizEncryption::encrypt($longKey);
 $decLong = ilMarkdownQuizEncryption::decrypt($encLong);
 echo "Match: " . ($longKey === $decLong ? "✓ PASS" : "✗ FAIL") . "\n\n";
 
+// Test 6: Base64-like plaintext must not be treated as encrypted
+echo "Test 6: Base64-Like Plaintext\n";
+$plainBase64ish = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=";
+echo "Plaintext: $plainBase64ish\n";
+echo "Is Encrypted: " . (ilMarkdownQuizEncryption::isEncrypted($plainBase64ish) ? "Yes" : "No") . "\n";
+try {
+    ilMarkdownQuizEncryption::decrypt($plainBase64ish);
+    echo "Decrypt plaintext: ✗ FAIL (expected exception)\n";
+} catch (Exception $e) {
+    echo "Decrypt plaintext: ✓ PASS (" . $e->getMessage() . ")\n";
+}
+$encBase64ish = ilMarkdownQuizEncryption::encrypt($plainBase64ish);
+echo "Encrypted carries prefix: " . (str_starts_with($encBase64ish, 'xmdq:v1:') ? "✓ PASS" : "✗ FAIL") . "\n";
+echo "Roundtrip: " . (ilMarkdownQuizEncryption::decrypt($encBase64ish) === $plainBase64ish ? "✓ PASS" : "✗ FAIL") . "\n\n";
+
 echo "=== All Tests Complete ===\n";

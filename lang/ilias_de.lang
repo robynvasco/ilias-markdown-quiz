@@ -105,9 +105,9 @@ config_system_prompt_info#:#Die Systemaufforderung für die KI-Quizgenerierung. 
 config_gwdg_key_label#:#GWDG API-Schlüssel
 config_gwdg_key_info#:#Geben Sie Ihren GWDG API-Schlüssel ein
 config_gwdg_model_label#:#GWDG Modell
-config_model_gwdg_llama#:#Llama 3.3 70B – Schnell und zuverlässig
-config_model_gwdg_qwen#:#Qwen 3 235B Thinking – Bestes Reasoning
-config_model_gwdg_mistral#:#Mistral Large 3 675B – Leistungsstärkstes Modell
+config_model_gwdg_llama#:#Llama 3.3 70B – GWDG-gehostet
+config_model_gwdg_qwen#:#Qwen 3 235B Thinking – GWDG-gehostet
+config_model_gwdg_mistral#:#Mistral Large 3 675B – GWDG-gehostet
 config_model_google_gemini#:#Gemini 2.5 Flash
 config_enabled_models_info#:#Für Nutzer zur Auswahl freigeben
 config_google_key_label#:#Google Gemini API-Schlüssel

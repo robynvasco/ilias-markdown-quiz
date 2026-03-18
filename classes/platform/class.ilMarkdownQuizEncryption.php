@@ -21,6 +21,8 @@ namespace platform;
  */
 class ilMarkdownQuizEncryption
 {
+    private const ENCRYPTED_PREFIX = 'xmdq:v1:';
+
     // Encryption method - AES-256-CBC is secure and widely supported
     private const ENCRYPTION_METHOD = 'aes-256-cbc';
     
@@ -102,10 +104,10 @@ class ilMarkdownQuizEncryption
         if ($encrypted === false) {
             throw new ilMarkdownQuizException('Encryption failed');
         }
-        
+
         // Prepend IV to encrypted data and encode as base64
         // Format: base64(iv + encrypted_data)
-        return base64_encode($iv . $encrypted);
+        return self::ENCRYPTED_PREFIX . base64_encode($iv . $encrypted);
     }
     
     /**
@@ -118,25 +120,14 @@ class ilMarkdownQuizEncryption
         if (empty($encryptedValue)) {
             return '';
         }
-        
-        // Decode from base64
-        $data = base64_decode($encryptedValue, true);
-        
-        if ($data === false) {
-            throw new ilMarkdownQuizException('Invalid encrypted value format');
-        }
-        
-        // Check if data is long enough to contain IV
-        if (strlen($data) < self::IV_LENGTH) {
-            throw new ilMarkdownQuizException('Invalid encrypted value length');
-        }
-        
+
+        $data = self::decodeEncryptedPayload($encryptedValue);
         $key = self::getEncryptionKey();
-        
+
         // Extract IV from beginning of data
         $iv = substr($data, 0, self::IV_LENGTH);
         $encrypted = substr($data, self::IV_LENGTH);
-        
+
         // Decrypt the value
         $decrypted = openssl_decrypt(
             $encrypted,
@@ -163,19 +154,34 @@ class ilMarkdownQuizEncryption
         if (empty($value)) {
             return false;
         }
-        
-        // Check if it's valid base64
-        $decoded = base64_decode($value, true);
-        if ($decoded === false) {
+
+        if (str_starts_with($value, self::ENCRYPTED_PREFIX)) {
+            return true;
+        }
+
+        try {
+            self::decrypt($value);
+            return true;
+        } catch (ilMarkdownQuizException $e) {
             return false;
         }
-        
-        // Check if it's long enough to contain IV + some data
-        if (strlen($decoded) <= self::IV_LENGTH) {
-            return false;
-        }
-        
-        return true;
     }
-    
+
+    private static function decodeEncryptedPayload(string $value): string
+    {
+        if (str_starts_with($value, self::ENCRYPTED_PREFIX)) {
+            $value = substr($value, strlen(self::ENCRYPTED_PREFIX));
+        }
+
+        $data = base64_decode($value, true);
+        if ($data === false) {
+            throw new ilMarkdownQuizException('Invalid encrypted value format');
+        }
+
+        if (strlen($data) < self::IV_LENGTH) {
+            throw new ilMarkdownQuizException('Invalid encrypted value length');
+        }
+
+        return $data;
+    }
 }

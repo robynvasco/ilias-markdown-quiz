@@ -24,9 +24,9 @@ require_once __DIR__ . '/class.ilMarkdownQuizLLM.php';
  * Integrates GWDG Academic Cloud API for quiz generation.
  * 
  * Supported Models:
- * - meta-llama/Llama-3.3-70B-Instruct
- * - Qwen/Qwen3-235B-A22B-Thinking-2507
- * - mistralai/Mistral-Large-Instruct-2501
+ * - llama-3.3-70b-instruct
+ * - qwen3-235b-a22b
+ * - mistral-large-3-675b-instruct-2512
  * 
  * API Docs: https://chat-ai.academiccloud.de/docs
  * Features: OpenAI-compatible API, SSE streaming, free for German universities, GDPR-compliant
@@ -37,7 +37,7 @@ class ilMarkdownQuizGWDG extends ilMarkdownQuizLLM
     /** @var string GWDG API key */
     private string $api_key;
     
-    /** @var string Model identifier (e.g., "meta-llama/Meta-Llama-3.1-70B-Instruct") */
+    /** @var string Model identifier (e.g., "llama-3.3-70b-instruct") */
     private string $model;
 
     /**
